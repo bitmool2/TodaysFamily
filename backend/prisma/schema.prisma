@@ -1,0 +1,240 @@
+// ─── Prisma Schema ────────────────────────────────────────────────────────────
+// Provider : MySQL (Render / PlanetScale / Railway)
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider     = "prisma-client-js"
+  engineType   = "binary"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum AuthProvider {
+  KAKAO
+  GOOGLE
+  EMAIL
+}
+
+enum GroupType {
+  ALL
+  MATERNAL
+  PATERNAL
+}
+
+enum SourceType {
+  CAMERA
+  GALLERY
+  KIDSNOTE
+}
+
+enum ReactionType {
+  HEART
+  SMILE
+  CLAP
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id             String     @id @default(uuid()) @db.VarChar(36)
+  email          String     @unique @db.VarChar(255)
+  name           String     @db.VarChar(100)
+  profileImage   String?    @db.VarChar(500)
+  provider       AuthProvider @default(EMAIL)
+  providerId     String?    @db.VarChar(255)
+  passwordHash   String?    @db.VarChar(255)
+  fcmToken       String?    @db.VarChar(500)
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  ownedFamilies  Family[]         @relation("FamilyOwner")
+  memberships    FamilyMember[]
+  posts          Post[]
+  comments       Comment[]
+  reactions      Reaction[]
+  invitesSent    FamilyInvite[]   @relation("InviteSender")
+
+  @@index([email])
+  @@map("users")
+}
+
+// ─── Family ───────────────────────────────────────────────────────────────────
+
+model Family {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(100)
+  ownerId   String   @db.VarChar(36)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner     User           @relation("FamilyOwner", fields: [ownerId], references: [id])
+  groups    Group[]
+  members   FamilyMember[]
+  children  Child[]
+  posts     Post[]
+  invites   FamilyInvite[]
+
+  @@index([ownerId])
+  @@map("families")
+}
+
+// ─── Group ────────────────────────────────────────────────────────────────────
+
+model Group {
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  familyId  String    @db.VarChar(36)
+  type      GroupType @default(ALL)
+  name      String    @db.VarChar(100)
+  createdAt DateTime  @default(now())
+
+  // Relations
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  posts     Post[]
+
+  @@unique([familyId, type])
+  @@index([familyId])
+  @@map("groups")
+}
+
+// ─── FamilyMember ─────────────────────────────────────────────────────────────
+
+model FamilyMember {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  familyId  String   @db.VarChar(36)
+  userId    String   @db.VarChar(36)
+  role      String   @db.VarChar(50)
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([familyId])
+  @@index([userId])
+  @@map("family_members")
+}
+
+// ─── Child ────────────────────────────────────────────────────────────────────
+
+model Child {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  familyId     String   @db.VarChar(36)
+  name         String   @db.VarChar(100)
+  birthDate    DateTime
+  profileImage String?  @db.VarChar(500)
+  createdAt    DateTime @default(now())
+
+  // Relations
+  family       Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  posts        Post[]
+
+  @@index([familyId])
+  @@map("children")
+}
+
+// ─── Post ─────────────────────────────────────────────────────────────────────
+
+model Post {
+  id          String     @id @default(uuid()) @db.VarChar(36)
+  familyId    String     @db.VarChar(36)
+  groupId     String     @db.VarChar(36)
+  authorId    String     @db.VarChar(36)
+  childId     String?    @db.VarChar(36)
+  imageUrl    String     @db.VarChar(500)
+  imageKey    String?    @db.VarChar(500)  // S3 key for deletion
+  caption     String?    @db.Text
+  source      SourceType @default(GALLERY)
+  isAiCaption Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  family      Family     @relation(fields: [familyId],  references: [id], onDelete: Cascade)
+  group       Group      @relation(fields: [groupId],   references: [id], onDelete: Cascade)
+  author      User       @relation(fields: [authorId],  references: [id], onDelete: Cascade)
+  child       Child?     @relation(fields: [childId],   references: [id], onDelete: SetNull)
+  comments    Comment[]
+  reactions   Reaction[]
+
+  @@index([familyId])
+  @@index([groupId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+// ─── Comment ──────────────────────────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  postId    String   @db.VarChar(36)
+  userId    String   @db.VarChar(36)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  post      Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+  @@map("comments")
+}
+
+// ─── Reaction ─────────────────────────────────────────────────────────────────
+
+model Reaction {
+  id        String       @id @default(uuid()) @db.VarChar(36)
+  postId    String       @db.VarChar(36)
+  userId    String       @db.VarChar(36)
+  type      ReactionType @default(HEART)
+  createdAt DateTime     @default(now())
+
+  // Relations
+  post      Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@map("reactions")
+}
+
+// ─── FamilyInvite ─────────────────────────────────────────────────────────────
+
+model FamilyInvite {
+  id         String       @id @default(uuid()) @db.VarChar(36)
+  familyId   String       @db.VarChar(36)
+  senderId   String       @db.VarChar(36)
+  token      String       @unique @db.VarChar(100)
+  role       String       @db.VarChar(50)
+  groupType  GroupType    @default(ALL)
+  status     InviteStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  // Relations
+  family     Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  sender     User   @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([token])
+  @@map("family_invites")
+}

@@ -1,0 +1,42 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: todaysfamily_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE:      todaysfamily
+      MYSQL_USER:          tfuser
+      MYSQL_PASSWORD:      tfpassword
+    ports:
+      - '3309:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: todaysfamily_backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      PORT: 3031
+      # Inside Docker network, backend talks to mysql container on 3306 (internal)
+      DATABASE_URL: mysql://tfuser:tfpassword@mysql:3306/todaysfamily
+    ports:
+      - '3031:3031'
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+volumes:
+  mysql_data:

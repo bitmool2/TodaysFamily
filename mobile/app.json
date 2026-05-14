@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "오늘의가족",
+    "slug": "todaysfamily",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FAF6F0",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF6F0"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "scheme": "todaysfamily",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.todaysfamily.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "가족 사진을 앨범에 저장하고 공유하기 위해 사진 접근 권한이 필요합니다.",
+        "NSCameraUsageDescription": "아이 사진을 촬영하기 위해 카메라 접근 권한이 필요합니다.",
+        "NSPhotoLibraryAddUsageDescription": "가족 앨범에 사진을 저장하기 위해 사진 저장 권한이 필요합니다."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAF6F0"
+      },
+      "package": "com.todaysfamily.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "todaysfamily" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "아이 사진을 촬영하기 위해 카메라 접근 권한이 필요합니다."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "가족 사진 앨범 자동 감지를 위해 사진 접근 권한이 필요합니다.",
+          "savePhotosPermission": "가족 앨범에 사진을 저장하기 위해 허용해주세요.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4A7C59"
+        }
+      ]
+    ]
+  }
+}
