@@ -20,6 +20,7 @@ export interface UploadResult {
   succeeded: number;
   failed: number;
   postIds: string[];
+  errorMessage?: string;
 }
 
 /**
@@ -58,14 +59,16 @@ export function useUpload() {
       } = opts;
 
       if (!family) {
-        setError('가족 정보를 찾을 수 없습니다.');
-        return { succeeded: 0, failed: assets.length, postIds: [] };
+        const msg = '가족 그룹이 아직 설정되지 않았어요. 설정 > 가족 그룹 관리에서 먼저 가족을 등록해 주세요.';
+        setError(msg);
+        return { succeeded: 0, failed: assets.length, postIds: [], errorMessage: msg };
       }
 
       const groupId = resolveGroupId(groupType);
       if (!groupId) {
-        setError('그룹 정보를 찾을 수 없습니다.');
-        return { succeeded: 0, failed: assets.length, postIds: [] };
+        const msg = '선택한 그룹에 등록된 가족이 없습니다. 가족 탭에서 해당 그룹에 가족을 먼저 등록해 주세요.';
+        setError(msg);
+        return { succeeded: 0, failed: assets.length, postIds: [], errorMessage: msg };
       }
 
       abortRef.current = false;

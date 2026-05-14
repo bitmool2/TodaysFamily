@@ -94,13 +94,13 @@ export default function PreviewScreen({ route, navigation }: Props) {
       caption:     caption || undefined,
       isAiCaption: captionIsAi,
       childId:     defaultChild?.id,
-      onFileComplete: (done, total) => {
-        // Progress is already updated inside the hook via uploadStore
-      },
+      onFileComplete: (_done, _total) => {},
     });
 
     if (result.succeeded === 0) {
-      Alert.alert('업로드 실패', '사진 업로드에 실패했습니다. 다시 시도해 주세요.');
+      const errorMsg = result.errorMessage
+        ?? '사진 업로드 중 문제가 발생했습니다. 네트워크 연결을 확인하고 다시 시도해 주세요.';
+      Alert.alert('업로드 실패', errorMsg);
       navigation.goBack();
       return;
     }

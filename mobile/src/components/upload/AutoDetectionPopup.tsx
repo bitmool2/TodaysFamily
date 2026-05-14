@@ -93,7 +93,10 @@ export default function AutoDetectionPopup({ visible, assets, onShare, onDismiss
       });
 
       if (result.succeeded === 0) {
-        Alert.alert('업로드 실패', '사진 업로드에 실패했습니다. 다시 시도해 주세요.');
+        Alert.alert(
+          '업로드 실패',
+          result.errorMessage ?? '사진 업로드 중 문제가 생겼어요. 네트워크 연결을 확인하고 다시 시도해 주세요.',
+        );
         setUploading(false);
         return;
       }

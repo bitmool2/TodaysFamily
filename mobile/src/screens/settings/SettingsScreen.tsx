@@ -60,15 +60,6 @@ export default function SettingsScreen({ navigation }: Props) {
           {/* ─── 업로드 설정 ─── */}
           <SectionCard title="업로드 설정" icon="cloud-upload-outline">
             <ToggleRow
-              icon="cloud-upload-outline"
-              iconBg="#E8F2EC"
-              label="자동 업로드"
-              desc="새로 저장된 사진을 자동으로 업로드해요"
-              value={autoUploadEnabled}
-              onChange={setAutoUploadEnabled}
-            />
-            <Divider />
-            <ToggleRow
               icon="wifi-outline"
               iconBg="#E8F0FB"
               label="Wi-Fi에서만 업로드"
@@ -77,11 +68,21 @@ export default function SettingsScreen({ navigation }: Props) {
               onChange={setWifiOnlyUpload}
             />
             <Divider />
+            <ToggleRow
+              icon="cloud-upload-outline"
+              iconBg="#E8F2EC"
+              label="자동 업로드"
+              desc="새로 저장된 사진을 자동으로 업로드해요"
+              value={autoUploadEnabled}
+              onChange={setAutoUploadEnabled}
+            />
+            <Divider />
             <LinkRow
               icon="folder-open-outline"
               iconBg={Colors.primaryPale}
               label="자동 업로드 앨범 선택"
               value="오늘의가족 자동업로드"
+              disabled={!autoUploadEnabled}
             />
             <Divider />
             <LinkRow
@@ -89,6 +90,7 @@ export default function SettingsScreen({ navigation }: Props) {
               iconBg="#FBE8DC"
               label="최근 사진 자동 업로드"
               value="최근 10분 이내"
+              disabled={!autoUploadEnabled}
             />
           </SectionCard>
 
@@ -232,24 +234,24 @@ function ToggleRow({ icon, iconBg, label, desc, value, onChange }: {
   );
 }
 
-function LinkRow({ icon, iconBg, label, value, badge }: {
-  icon: string; iconBg: string; label: string; value?: string; badge?: string;
+function LinkRow({ icon, iconBg, label, value, badge, disabled }: {
+  icon: string; iconBg: string; label: string; value?: string; badge?: string; disabled?: boolean;
 }) {
   return (
-    <TouchableOpacity style={rowStyles.row} activeOpacity={0.75}>
-      <View style={[rowStyles.iconBox, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon as any} size={19} color={Colors.primary} />
+    <TouchableOpacity style={[rowStyles.row, disabled && rowStyles.rowDisabled]} activeOpacity={disabled ? 1 : 0.75} disabled={disabled}>
+      <View style={[rowStyles.iconBox, { backgroundColor: disabled ? Colors.backgroundMuted : iconBg }]}>
+        <Ionicons name={icon as any} size={19} color={disabled ? Colors.textMuted : Colors.primary} />
       </View>
       <View style={rowStyles.content}>
-        <Text style={rowStyles.label}>{label}</Text>
-        {value && <Text style={rowStyles.desc}>{value}</Text>}
+        <Text style={[rowStyles.label, disabled && rowStyles.labelDisabled]}>{label}</Text>
+        {value && <Text style={[rowStyles.desc, disabled && rowStyles.labelDisabled]}>{value}</Text>}
       </View>
       {badge && (
         <View style={rowStyles.badge}>
           <Text style={rowStyles.badgeText}>{badge}</Text>
         </View>
       )}
-      <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+      <Ionicons name="chevron-forward" size={16} color={disabled ? Colors.borderLight : Colors.textMuted} />
     </TouchableOpacity>
   );
 }
@@ -376,4 +378,6 @@ const rowStyles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   badgeText: { fontSize: FontSize.xs, color: Colors.primary, fontWeight: FontWeight.semibold },
+  rowDisabled: { opacity: 0.45 },
+  labelDisabled: { color: Colors.textMuted },
 });

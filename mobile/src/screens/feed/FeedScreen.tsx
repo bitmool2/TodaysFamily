@@ -87,6 +87,12 @@ export default function FeedScreen({ navigation }: Props) {
             <TouchableOpacity style={styles.iconBtn}>
               <Ionicons name="filter-outline" size={22} color={Colors.textPrimary} />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.iconBtn, styles.addBtn]}
+              onPress={() => navigation.navigate('UploadModal' as any)}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -180,6 +186,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.backgroundMuted,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  addBtn: {
+    backgroundColor: Colors.primary,
   },
   tabsContainer: {
     flexDirection: 'row',

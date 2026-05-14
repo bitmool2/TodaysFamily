@@ -19,13 +19,14 @@ const { width: W } = Dimensions.get('window');
 
 type Props = TabScreenProps<'HomeTab'>;
 
+// 업로드 시간 기준 최근 5장만 노출
 const RECENT_UPLOADS = [
   { id: '1', uri: 'https://picsum.photos/200/200?random=31', date: '오늘', group: '전체' },
   { id: '2', uri: 'https://picsum.photos/200/200?random=32', date: '어제', group: '친정' },
   { id: '3', uri: 'https://picsum.photos/200/200?random=33', date: '어제', group: '시댁' },
   { id: '4', uri: 'https://picsum.photos/200/200?random=34', date: '3일 전', group: '전체' },
   { id: '5', uri: 'https://picsum.photos/200/200?random=35', date: '4일 전', group: '친정' },
-];
+].slice(0, 5);
 
 const AI_MEMORIES = [
   {
@@ -66,7 +67,7 @@ export default function HomeScreen({ navigation }: Props) {
         <View style={styles.header}>
           <View>
             <Text style={styles.headerDate}>{dateStr}</Text>
-            <Text style={styles.greeting}>안녕하세요, {user?.name ?? '회원'}님 👋</Text>
+            <Text style={styles.greeting}>안녕하세요, {user?.name ?? '가족'}님 👋</Text>
           </View>
           <TouchableOpacity style={styles.notifBtn} onPress={() => navigation.navigate('Main')}>
             <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
@@ -113,7 +114,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.sectionNoH}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>최근 업로드</Text>
-              <TouchableOpacity onPress={() => {}}>
+              <TouchableOpacity onPress={() => navigation.navigate('FeedTab' as any)}>
                 <Text style={styles.seeAll}>전체 보기</Text>
               </TouchableOpacity>
             </View>

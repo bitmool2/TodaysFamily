@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   Dimensions,
   ScrollView,
 } from 'react-native';
@@ -18,7 +17,6 @@ import GroupTabBar from '@/components/common/GroupTabBar';
 import Avatar from '@/components/common/Avatar';
 
 const { width: W } = Dimensions.get('window');
-const PHOTO_SIZE = (W - Spacing.xl * 2 - Spacing.sm * 2) / 3;
 
 type Props = TabScreenProps<'FamilyTab'>;
 
@@ -36,11 +34,6 @@ const MEMBERS = [
   { id: '5', name: '할머니',  role: '시어머니', emoji: '👵', group: 'PATERNAL' as GroupType },
   { id: '6', name: '할아버지', role: '시아버지', emoji: '👴', group: 'PATERNAL' as GroupType },
 ];
-
-const ALBUM_PHOTOS = Array.from({ length: 9 }, (_, i) => ({
-  id: String(i + 1),
-  uri: `https://picsum.photos/300/300?random=${60 + i}`,
-}));
 
 export default function FamilyScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<GroupType>('ALL');
@@ -132,50 +125,6 @@ export default function FamilyScreen({ navigation }: Props) {
               </TouchableOpacity>
             </ScrollView>
           </View>
-
-          {/* ─── Album grid ─── */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>앨범</Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAll}>전체 보기</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.photoGrid}>
-              {ALBUM_PHOTOS.slice(0, 9).map((photo, index) => (
-                <TouchableOpacity
-                  key={photo.id}
-                  style={[
-                    styles.photoCell,
-                    index === 0 && styles.photoCellLarge,
-                  ]}
-                  activeOpacity={0.9}
-                >
-                  <Image
-                    source={{ uri: photo.uri }}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                  />
-                  {index === 8 && (
-                    <View style={styles.moreOverlay}>
-                      <Text style={styles.moreText}>+더보기</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* ─── Invite CTA ─── */}
-          <TouchableOpacity
-            style={styles.inviteCTA}
-            onPress={() => navigation.navigate('FamilyInvite', { groupType: activeTab })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="link-outline" size={20} color={Colors.primary} />
-            <Text style={styles.inviteCTAText}>초대 링크로 가족 추가하기</Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
-          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -282,47 +231,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.border,
     borderStyle: 'dashed',
-  },
-  photoGrid: {
-    paddingHorizontal: Spacing.xl,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  photoCell: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    backgroundColor: Colors.backgroundMuted,
-  },
-  photoCellLarge: {
-    width: PHOTO_SIZE * 2 + Spacing.sm,
-    height: PHOTO_SIZE * 2 + Spacing.sm,
-  },
-  moreOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moreText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  inviteCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginHorizontal: Spacing.xl,
-    backgroundColor: Colors.primaryPale,
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    borderWidth: 1.5,
-    borderColor: Colors.primary + '33',
-    borderStyle: 'dashed',
-  },
-  inviteCTAText: {
-    flex: 1,
-    fontSize: FontSize.base,
-    fontWeight: FontWeight.semibold,
-    color: Colors.primary,
   },
 });
