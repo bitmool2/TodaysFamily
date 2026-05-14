@@ -72,7 +72,7 @@ export default function FamilyScreen({ navigation }: Props) {
           <View style={[styles.albumCard, { backgroundColor: groupConfig.bg }]}>
             <View style={styles.albumCardLeft}>
               <Text style={[styles.albumCardTitle, { color: groupConfig.color }]}>{groupConfig.label}</Text>
-              <Text style={styles.albumCardSub}>사진 {ALBUM_PHOTOS.length}장 · 댓글 24개 · 반응 58개</Text>
+              <Text style={styles.albumCardSub}>멤버 {filteredMembers.length}명 · 댓글 24개 · 반응 58개</Text>
             </View>
             <View style={styles.albumMemberStack}>
               {filteredMembers.slice(0, 3).map((m, i) => (
