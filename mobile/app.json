@@ -41,6 +41,16 @@
           "autoVerify": true,
           "data": [{ "scheme": "todaysfamily" }],
           "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "SEND",
+          "data": [{ "mimeType": "image/*" }],
+          "category": ["DEFAULT"]
+        },
+        {
+          "action": "SEND_MULTIPLE",
+          "data": [{ "mimeType": "image/*" }],
+          "category": ["DEFAULT"]
         }
       ]
     },

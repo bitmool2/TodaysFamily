@@ -93,6 +93,14 @@ export default function FamilyGroupSetupScreen({ navigation }: Props) {
             </Text>
           </View>
 
+          {/* Info — 카드 위에 위치 */}
+          <View style={styles.infoBox}>
+            <Ionicons name="bulb-outline" size={16} color={Colors.accent} />
+            <Text style={styles.infoText}>
+              여러 그룹을 동시에 선택할 수 있어요. 사진마다 공유 범위를 다르게 설정할 수 있답니다 😊
+            </Text>
+          </View>
+
           {/* Cards */}
           <View style={styles.cards}>
             {CARDS.map((card) => {
@@ -144,14 +152,6 @@ export default function FamilyGroupSetupScreen({ navigation }: Props) {
                 </TouchableOpacity>
               );
             })}
-          </View>
-
-          {/* Info */}
-          <View style={styles.infoBox}>
-            <Ionicons name="bulb-outline" size={16} color={Colors.accent} />
-            <Text style={styles.infoText}>
-              여러 그룹을 동시에 선택할 수 있어요. 사진마다 공유 범위를 다르게 설정할 수 있답니다 😊
-            </Text>
           </View>
         </ScrollView>
 

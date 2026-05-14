@@ -23,8 +23,10 @@ export default function SettingsScreen({ navigation }: Props) {
   const logout = useAuthStore((s) => s.logout);
   const autoUploadEnabled = useUploadStore((s) => s.autoUploadEnabled);
   const wifiOnlyUpload = useUploadStore((s) => s.wifiOnlyUpload);
+  const recentAutoUpload = useUploadStore((s) => s.recentAutoUpload);
   const setAutoUploadEnabled = useUploadStore((s) => s.setAutoUploadEnabled);
   const setWifiOnlyUpload = useUploadStore((s) => s.setWifiOnlyUpload);
+  const setRecentAutoUpload = useUploadStore((s) => s.setRecentAutoUpload);
 
   const handleLogout = () => {
     Alert.alert('로그아웃', '로그아웃 하시겠어요?', [
@@ -85,11 +87,13 @@ export default function SettingsScreen({ navigation }: Props) {
               disabled={!autoUploadEnabled}
             />
             <Divider />
-            <LinkRow
+            <ToggleRow
               icon="images-outline"
               iconBg="#FBE8DC"
               label="최근 사진 자동 업로드"
-              value="최근 10분 이내"
+              desc="최근 10분 이내 저장된 사진을 자동 업로드해요"
+              value={recentAutoUpload}
+              onChange={setRecentAutoUpload}
               disabled={!autoUploadEnabled}
             />
           </SectionCard>
@@ -210,22 +214,23 @@ function SectionCard({ title, icon, children }: {
   );
 }
 
-function ToggleRow({ icon, iconBg, label, desc, value, onChange }: {
+function ToggleRow({ icon, iconBg, label, desc, value, onChange, disabled }: {
   icon: string; iconBg: string; label: string; desc?: string;
-  value: boolean; onChange: (v: boolean) => void;
+  value: boolean; onChange: (v: boolean) => void; disabled?: boolean;
 }) {
   return (
-    <View style={rowStyles.row}>
-      <View style={[rowStyles.iconBox, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon as any} size={19} color={Colors.primary} />
+    <View style={[rowStyles.row, disabled && rowStyles.rowDisabled]}>
+      <View style={[rowStyles.iconBox, { backgroundColor: disabled ? Colors.backgroundMuted : iconBg }]}>
+        <Ionicons name={icon as any} size={19} color={disabled ? Colors.textMuted : Colors.primary} />
       </View>
       <View style={rowStyles.content}>
-        <Text style={rowStyles.label}>{label}</Text>
-        {desc && <Text style={rowStyles.desc}>{desc}</Text>}
+        <Text style={[rowStyles.label, disabled && rowStyles.labelDisabled]}>{label}</Text>
+        {desc && <Text style={[rowStyles.desc, disabled && rowStyles.labelDisabled]}>{desc}</Text>}
       </View>
       <Switch
         value={value}
-        onValueChange={onChange}
+        onValueChange={disabled ? undefined : onChange}
+        disabled={disabled}
         trackColor={{ false: Colors.border, true: Colors.primaryLight }}
         thumbColor={Colors.backgroundCard}
         ios_backgroundColor={Colors.border}

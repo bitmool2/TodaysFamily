@@ -22,6 +22,7 @@ interface UploadStore {
   autoUploadEnabled: boolean;
   wifiOnlyUpload: boolean;
   autoUploadAlbum: string;
+  recentAutoUpload: boolean;
 
   // Actions
   setDetectedAssets: (assets: UploadAsset[]) => void;
@@ -38,6 +39,7 @@ interface UploadStore {
   setAutoUploadEnabled: (enabled: boolean) => void;
   setWifiOnlyUpload: (enabled: boolean) => void;
   setAutoUploadAlbum: (album: string) => void;
+  setRecentAutoUpload: (enabled: boolean) => void;
   resetUpload: () => void;
 }
 
@@ -62,6 +64,7 @@ export const useUploadStore = create<UploadStore>((set) => ({
   autoUploadEnabled: false,
   wifiOnlyUpload: true,
   autoUploadAlbum: '오늘의가족 자동업로드',
+  recentAutoUpload: false,
 
   setDetectedAssets: (assets) => set({ detectedAssets: assets }),
   setShowDetectionPopup: (show) => set({ showDetectionPopup: show }),
@@ -79,6 +82,7 @@ export const useUploadStore = create<UploadStore>((set) => ({
   setAutoUploadEnabled: (enabled) => set({ autoUploadEnabled: enabled }),
   setWifiOnlyUpload: (enabled) => set({ wifiOnlyUpload: enabled }),
   setAutoUploadAlbum: (album) => set({ autoUploadAlbum: album }),
+  setRecentAutoUpload: (enabled) => set({ recentAutoUpload: enabled }),
   resetUpload: () =>
     set({
       selectedAssets: [],

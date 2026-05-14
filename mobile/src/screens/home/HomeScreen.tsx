@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
+import { useUploadStore } from '@/store/uploadStore';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { TabScreenProps } from '@/types/navigation';
 
@@ -57,9 +58,17 @@ const ALERTS = [
 
 export default function HomeScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
+  const autoUploadEnabled = useUploadStore((s) => s.autoUploadEnabled);
+  const recentAutoUpload = useUploadStore((s) => s.recentAutoUpload);
+  const newPhotoActive = autoUploadEnabled && recentAutoUpload;
+
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${['일','월','화','수','목','금','토'][today.getDay()]})`;
 
+  const handleNewPhotoPress = () => {
+    if (newPhotoActive) return; // 활성화 상태면 그냥 표시용
+    navigation.navigate('SettingsTab' as any);
+  };
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -83,7 +92,25 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>오늘의 소식</Text>
             <View style={styles.statGrid}>
-              <StatCard emoji="📸" label="새 사진" value="12장" bg={Colors.primaryPale} accent={Colors.primary} />
+              {/* 새 사진: 자동업로드 + 최근사진자동업로드 둘 다 ON일 때만 활성화 */}
+              <TouchableOpacity
+                style={[styles.statCard, { backgroundColor: newPhotoActive ? Colors.primaryPale : Colors.backgroundMuted }]}
+                onPress={handleNewPhotoPress}
+                activeOpacity={newPhotoActive ? 1 : 0.75}
+              >
+                <Text style={styles.statEmoji}>{newPhotoActive ? '📸' : '📵'}</Text>
+                {newPhotoActive ? (
+                  <>
+                    <Text style={[styles.statValue, { color: Colors.primary }]}>12장</Text>
+                    <Text style={styles.statLabel}>새 사진</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.statValue, { color: Colors.textMuted, fontSize: FontSize.xs }]}>꺼짐</Text>
+                    <Text style={[styles.statLabel, { color: Colors.textMuted, textAlign: 'center' }]}>최근사진{'\n'}업로드 설정하러 가기</Text>
+                  </>
+                )}
+              </TouchableOpacity>
               <StatCard emoji="📋" label="키즈노트" value="1건"  bg="#FBE8DC" accent="#C4693A" />
               <StatCard emoji="❤️"  label="가족 반응" value="3개"  bg="#FDE8E8" accent="#D94F3D" />
             </View>

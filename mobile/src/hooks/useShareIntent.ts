@@ -44,7 +44,7 @@ export function useShareIntent() {
           creationTime: Date.now(),
         }));
 
-        navigation.navigate('Preview', { assets, source: 'KIDSNOTE' });
+        navigation.navigate('Preview', { assets, source: 'GALLERY' });
       }
       // text/URL shares (e.g. KidsNote notice URLs) — open KidsNote guide
       else if (payload.type === 'text' && payload.text) {
