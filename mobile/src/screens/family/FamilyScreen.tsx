@@ -8,9 +8,12 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { TabScreenProps } from '@/types/navigation';
 import type { GroupType } from '@/types';
@@ -28,7 +31,7 @@ const GROUP_EMOJI_OPTIONS = [
 // 현재 로그인 유저 ID (목업) — 실제에서는 authStore에서 가져옴
 const MY_USER_ID = '1'; // isOwner인 멤버의 id
 
-type GroupTabItem = { type: GroupType; label: string; emoji: string };
+type GroupTabItem = { type: GroupType; label: string; emoji: string; imageUri?: string };
 
 const DEFAULT_GROUP_TABS: GroupTabItem[] = [
   { type: 'ALL',      label: '전체', emoji: '👨‍👩‍👧‍👦' },
@@ -87,6 +90,35 @@ export default function FamilyScreen({ navigation }: Props) {
 
   const isOwner = MEMBERS.find((m) => m.id === MY_USER_ID)?.isOwner ?? false;
 
+  /** 갤러리에서 사진 선택 → 200×200으로 리사이즈 + 품질 0.7 압축 → imageUri 저장 */
+  const handlePickGroupPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const compressed = await ImageManipulator.manipulateAsync(
+      result.assets[0].uri,
+      [{ resize: { width: 200, height: 200 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+    );
+
+    if (!editingGroup) return;
+    setGroupTabs((prev) =>
+      prev.map((t) =>
+        t.type === editingGroup ? { ...t, imageUri: compressed.uri, emoji: '' } : t
+      )
+    );
+    setEditingGroup(null);
+  };
+
   const filteredMembers = activeTab === 'ALL'
     ? MEMBERS
     : MEMBERS.filter((m) => m.group === activeTab || m.group === 'ALL');
@@ -94,7 +126,9 @@ export default function FamilyScreen({ navigation }: Props) {
   const groupComments  = filteredMembers.reduce((s, m) => s + m.comments,  0);
   const groupReactions = filteredMembers.reduce((s, m) => s + m.reactions, 0);
 
-  const currentTabEmoji = groupTabs.find((t) => t.type === activeTab)?.emoji ?? '';
+  const currentTab = groupTabs.find((t) => t.type === activeTab);
+  const currentTabEmoji = currentTab?.emoji ?? '';
+  const currentTabImageUri = currentTab?.imageUri;
 
   const groupConfig = {
     ALL:      { label: '전체 가족',  color: Colors.primary, bg: Colors.primaryPale },
@@ -128,8 +162,15 @@ export default function FamilyScreen({ navigation }: Props) {
           <View style={[styles.summaryCard, { backgroundColor: groupConfig.bg }]}>
             <View style={styles.summaryLeft}>
               <View style={styles.summaryTitleRow}>
+                <View style={styles.summaryIconWrap}>
+                  {currentTabImageUri ? (
+                    <Image source={{ uri: currentTabImageUri }} style={styles.summaryIconImage} />
+                  ) : (
+                    <Text style={{ fontSize: 22 }}>{currentTabEmoji}</Text>
+                  )}
+                </View>
                 <Text style={[styles.summaryTitle, { color: groupConfig.color }]}>
-                  {currentTabEmoji} {groupConfig.label}
+                  {groupConfig.label}
                 </Text>
                 {/* 친정·시댁만 편집 가능, 그룹 생성자(오너)만 */}
                 {isOwner && activeTab !== 'ALL' && (
@@ -141,8 +182,7 @@ export default function FamilyScreen({ navigation }: Props) {
                     <Text style={[styles.editGroupIconText, { color: groupConfig.color }]}>아이콘 변경</Text>
                   </TouchableOpacity>
                 )}
-              </View>
-              <Text style={styles.summarySub}>
+              </View>              <Text style={styles.summarySub}>
                 댓글 {groupComments}개 · 반응 {groupReactions}개
               </Text>
             </View>
@@ -285,9 +325,16 @@ export default function FamilyScreen({ navigation }: Props) {
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <View style={styles.sheetAvatar}>
-              <Text style={{ fontSize: 28 }}>
-                {groupTabs.find((t) => t.type === editingGroup)?.emoji}
-              </Text>
+              {groupTabs.find((t) => t.type === editingGroup)?.imageUri ? (
+                <Image
+                  source={{ uri: groupTabs.find((t) => t.type === editingGroup)!.imageUri }}
+                  style={{ width: 48, height: 48, borderRadius: 24 }}
+                />
+              ) : (
+                <Text style={{ fontSize: 28 }}>
+                  {groupTabs.find((t) => t.type === editingGroup)?.emoji}
+                </Text>
+              )}
             </View>
             <View style={styles.sheetMemberInfo}>
               <Text style={styles.sheetName}>
@@ -299,6 +346,17 @@ export default function FamilyScreen({ navigation }: Props) {
               <Ionicons name="close" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
+
+          {/* 사진 선택 버튼 */}
+          <TouchableOpacity style={styles.photoPickBtn} onPress={handlePickGroupPhoto} activeOpacity={0.8}>
+            <Ionicons name="image-outline" size={20} color={Colors.primary} />
+            <Text style={styles.photoPickBtnText}>갤러리에서 사진 선택</Text>
+            <Text style={styles.photoPickBtnHint}>· 200×200 자동 압축</Text>
+          </TouchableOpacity>
+
+          <View style={styles.emojiSectionLabel}>
+            <Text style={styles.emojiSectionLabelText}>또는 이모지 선택</Text>
+          </View>
           <View style={styles.emojiGrid}>
             {GROUP_EMOJI_OPTIONS.map((e) => {
               const isSelected = groupTabs.find((t) => t.type === editingGroup)?.emoji === e;
@@ -308,7 +366,7 @@ export default function FamilyScreen({ navigation }: Props) {
                   style={[styles.emojiItem, isSelected && styles.emojiItemSelected]}
                   onPress={() => {
                     if (!editingGroup) return;
-                    setGroupTabs((prev) => prev.map((t) => t.type === editingGroup ? { ...t, emoji: e } : t));
+                    setGroupTabs((prev) => prev.map((t) => t.type === editingGroup ? { ...t, emoji: e, imageUri: undefined } : t));
                     setEditingGroup(null);
                   }}
                 >
@@ -341,6 +399,8 @@ const styles = StyleSheet.create({
   },
   summaryLeft: { flex: 1 },
   summaryTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
+  summaryIconWrap: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  summaryIconImage: { width: 32, height: 32, borderRadius: 16 },
   summaryTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   editGroupIconBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -426,6 +486,19 @@ const styles = StyleSheet.create({
   activityTime: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
   sheetEmpty: { alignItems: 'center', paddingVertical: Spacing.xxxl },
   sheetEmptyText: { fontSize: FontSize.sm, color: Colors.textMuted },
+  // 그룹 아이콘 편집 모달
+  photoPickBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.lg,
+    backgroundColor: Colors.primaryPale, borderRadius: Radius.xl,
+    paddingVertical: 13, paddingHorizontal: Spacing.xl,
+  },
+  photoPickBtnText: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.primary, flex: 1 },
+  photoPickBtnHint: { fontSize: FontSize.xs, color: Colors.primary + 'AA' },
+  emojiSectionLabel: {
+    paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.sm,
+  },
+  emojiSectionLabelText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, color: Colors.textSecondary },
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.md, justifyContent: 'center', paddingBottom: 40 },
   emojiItem: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.backgroundMuted },
   emojiItemSelected: { backgroundColor: Colors.primaryPale, borderWidth: 2, borderColor: Colors.primary },

@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '@/theme';
 import type { GroupType } from '@/types';
 
-interface Tab { type: GroupType; label: string; emoji?: string }
+interface Tab { type: GroupType; label: string; emoji?: string; imageUri?: string }
 
 interface Props {
   tabs: Tab[];
@@ -24,7 +24,11 @@ export default function GroupTabBar({ tabs, active, onChange, style }: Props) {
             onPress={() => onChange(tab.type)}
             activeOpacity={0.75}
           >
-            {tab.emoji && <Text style={styles.emoji}>{tab.emoji}</Text>}
+            {tab.imageUri ? (
+              <Image source={{ uri: tab.imageUri }} style={styles.tabImage} />
+            ) : tab.emoji ? (
+              <Text style={styles.emoji}>{tab.emoji}</Text>
+            ) : null}
             <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
           </TouchableOpacity>
         );
@@ -51,6 +55,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   emoji: { fontSize: 13 },
+  tabImage: {
+    width: 18, height: 18, borderRadius: 9,
+  },
   label: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
