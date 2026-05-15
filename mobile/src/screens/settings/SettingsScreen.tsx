@@ -24,6 +24,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const autoUploadEnabled = useUploadStore((s) => s.autoUploadEnabled);
   const wifiOnlyUpload = useUploadStore((s) => s.wifiOnlyUpload);
   const recentAutoUpload = useUploadStore((s) => s.recentAutoUpload);
+  const autoUploadAlbum = useUploadStore((s) => s.autoUploadAlbum);
   const setAutoUploadEnabled = useUploadStore((s) => s.setAutoUploadEnabled);
   const setWifiOnlyUpload = useUploadStore((s) => s.setWifiOnlyUpload);
   const setRecentAutoUpload = useUploadStore((s) => s.setRecentAutoUpload);
