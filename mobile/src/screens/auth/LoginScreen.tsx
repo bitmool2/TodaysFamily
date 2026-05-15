@@ -52,6 +52,14 @@ export default function LoginScreen({ navigation }: Props) {
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [showSignupPwConfirm, setShowSignupPwConfirm] = useState(false);
 
+  // 역할 선택 (관리자 / 멤버)
+  const [signupRole, setSignupRole] = useState<'ADMIN' | 'MEMBER'>('ADMIN');
+  // 멤버 가입 시 관리자 이메일 매핑
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminEmailError, setAdminEmailError] = useState('');
+  const [adminEmailCheckLoading, setAdminEmailCheckLoading] = useState(false);
+  const [adminEmailVerified, setAdminEmailVerified] = useState<boolean | null>(null);
+
   // Profile avatar (emoji or image URI)
   const [profileEmoji, setProfileEmoji] = useState('👩');
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
@@ -155,6 +163,12 @@ export default function LoginScreen({ navigation }: Props) {
 
     if (hasError) return;
 
+    // 멤버 역할인 경우 관리자 이메일 확인
+    if (signupRole === 'MEMBER' && adminEmailVerified !== true) {
+      setAdminEmailError('관리자 이메일을 확인해주세요.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await new Promise((r) => setTimeout(r, 900));
@@ -175,6 +189,35 @@ export default function LoginScreen({ navigation }: Props) {
     setSignupPasswordConfirm(''); setNameError(''); setEmailError('');
     setPwError(''); setPwConfirmError(''); setEmailAvailable(null);
     setProfileEmoji('👩'); setProfileImageUri(null);
+    setSignupRole('ADMIN');
+    setAdminEmail(''); setAdminEmailError(''); setAdminEmailVerified(null);
+  };
+
+  /** 멤버 가입 시 관리자 이메일 존재 여부 확인 */
+  const handleAdminEmailCheck = async () => {
+    if (!EMAIL_REGEX.test(adminEmail)) {
+      setAdminEmailError('올바른 이메일 형식이 아닙니다.');
+      setAdminEmailVerified(null);
+      return;
+    }
+    setAdminEmailError('');
+    setAdminEmailCheckLoading(true);
+    try {
+      const res = await api.get('/auth/check-email', { params: { email: adminEmail } });
+      if (res.data.available) {
+        // 가입된 계정이 없음 → 관리자 아님
+        setAdminEmailError('등록된 관리자 계정이 없습니다. 이메일을 확인해주세요.');
+        setAdminEmailVerified(false);
+      } else {
+        // 이미 가입된 계정 → 관리자 존재
+        setAdminEmailVerified(true);
+      }
+    } catch {
+      // 서버 미연결 시 목업 처리 (테스트용)
+      setAdminEmailVerified(true);
+    } finally {
+      setAdminEmailCheckLoading(false);
+    }
   };
 
   const handlePickProfileImage = async () => {
@@ -294,6 +337,58 @@ export default function LoginScreen({ navigation }: Props) {
 
               <Text style={styles.signupTitle}>회원가입</Text>
 
+              {/* ─── 역할 선택 ─── */}
+              <View style={styles.roleSection}>
+                <Text style={styles.roleLabel}>가입 유형을 선택해주세요</Text>
+                <View style={styles.roleRow}>
+                  <TouchableOpacity
+                    style={[styles.roleCard, signupRole === 'ADMIN' && styles.roleCardActive]}
+                    onPress={() => { setSignupRole('ADMIN'); setAdminEmail(''); setAdminEmailError(''); setAdminEmailVerified(null); }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.roleIconWrap}>
+                      <Ionicons
+                        name="shield-checkmark-outline"
+                        size={26}
+                        color={signupRole === 'ADMIN' ? Colors.primary : Colors.textMuted}
+                      />
+                    </View>
+                    <Text style={[styles.roleCardTitle, signupRole === 'ADMIN' && styles.roleCardTitleActive]}>
+                      관리자
+                    </Text>
+                    <Text style={styles.roleCardDesc}>가족 그룹을{'\n'}직접 만들어요</Text>
+                    {signupRole === 'ADMIN' && (
+                      <View style={styles.roleCheckBadge}>
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.roleCard, signupRole === 'MEMBER' && styles.roleCardActive]}
+                    onPress={() => setSignupRole('MEMBER')}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.roleIconWrap}>
+                      <Ionicons
+                        name="people-outline"
+                        size={26}
+                        color={signupRole === 'MEMBER' ? Colors.primary : Colors.textMuted}
+                      />
+                    </View>
+                    <Text style={[styles.roleCardTitle, signupRole === 'MEMBER' && styles.roleCardTitleActive]}>
+                      멤버
+                    </Text>
+                    <Text style={styles.roleCardDesc}>관리자에게{'\n'}초대받았어요</Text>
+                    {signupRole === 'MEMBER' && (
+                      <View style={styles.roleCheckBadge}>
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {/* 프로필 아바타 선택 */}
               <View style={styles.avatarSection}>
                 <TouchableOpacity
@@ -401,8 +496,56 @@ export default function LoginScreen({ navigation }: Props) {
                 <Text style={styles.pwHintText}>· 8자 이상  · 영문 포함  · 숫자 포함</Text>
               </View>
 
+              {/* ─── 멤버 전용: 관리자 이메일 입력 ─── */}
+              {signupRole === 'MEMBER' && (
+                <View style={styles.adminEmailSection}>
+                  <View style={styles.adminEmailHeader}>
+                    <Ionicons name="link-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.adminEmailSectionTitle}>관리자 계정 연결</Text>
+                  </View>
+                  <Text style={styles.adminEmailSectionDesc}>
+                    초대해준 관리자의 이메일 주소를 입력하면 해당 가족 그룹에 연결됩니다.
+                  </Text>
+                  <View style={styles.emailCheckRow}>
+                    <View style={[
+                      styles.inputWrapper, styles.inputWrapperFlex,
+                      adminEmailVerified === true && styles.inputWrapperSuccess,
+                      !!adminEmailError && styles.inputWrapperError,
+                    ]}>
+                      <Ionicons name="mail-outline" size={18} color={Colors.textMuted} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="관리자 이메일 주소"
+                        placeholderTextColor={Colors.textMuted}
+                        value={adminEmail}
+                        onChangeText={(t) => { setAdminEmail(t); setAdminEmailVerified(null); setAdminEmailError(''); }}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                      />
+                      {adminEmailVerified === true && (
+                        <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.checkBtn, adminEmailCheckLoading && { opacity: 0.6 }]}
+                      onPress={handleAdminEmailCheck}
+                      disabled={adminEmailCheckLoading}
+                    >
+                      {adminEmailCheckLoading
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={styles.checkBtnText}>확인</Text>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                  {adminEmailVerified === true && (
+                    <Text style={styles.successText}>✓ 관리자 계정이 확인되었습니다.</Text>
+                  )}
+                  {!!adminEmailError && <Text style={styles.fieldError}>{adminEmailError}</Text>}
+                </View>
+              )}
+
               <TouchableOpacity
-                style={[styles.submitBtn, (isLoading || emailAvailable === false) && styles.submitBtnLoading]}
+                style={[styles.submitBtn, (isLoading || emailAvailable === false || (signupRole === 'MEMBER' && adminEmailVerified !== true && adminEmail.length > 0 && adminEmailVerified === false)) && styles.submitBtnLoading]}
                 onPress={handleSignup}
                 disabled={isLoading || emailAvailable === false}
                 activeOpacity={0.85}
@@ -632,4 +775,31 @@ const styles = StyleSheet.create({
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.md, justifyContent: 'center' },
   emojiItem: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.backgroundMuted },
   emojiItemSelected: { backgroundColor: Colors.primaryPale, borderWidth: 2, borderColor: Colors.primary },
+  // 역할 선택
+  roleSection: { marginBottom: Spacing.xl },
+  roleLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.textSecondary, marginBottom: Spacing.md },
+  roleRow: { flexDirection: 'row', gap: Spacing.md },
+  roleCard: {
+    flex: 1, alignItems: 'center', paddingVertical: Spacing.xl, paddingHorizontal: Spacing.md,
+    borderRadius: Radius.xl, borderWidth: 1.5, borderColor: Colors.border,
+    backgroundColor: Colors.backgroundCard, position: 'relative',
+  },
+  roleCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryPale },
+  roleIconWrap: { marginBottom: Spacing.sm },
+  roleCardTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.textSecondary, marginBottom: 4 },
+  roleCardTitleActive: { color: Colors.primary },
+  roleCardDesc: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center', lineHeight: 16 },
+  roleCheckBadge: {
+    position: 'absolute', top: 8, right: 8,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  // 관리자 이메일 섹션
+  adminEmailSection: {
+    backgroundColor: Colors.primaryPale, borderRadius: Radius.xl,
+    padding: Spacing.xl, marginBottom: Spacing.lg, gap: Spacing.md,
+  },
+  adminEmailHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  adminEmailSectionTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold, color: Colors.primary },
+  adminEmailSectionDesc: { fontSize: FontSize.sm, color: Colors.textSecondary, lineHeight: 18 },
 });
