@@ -39,7 +39,8 @@ export class AuthService {
     if (!user) {
       return { exists: false, isAdmin: false, message: '등록된 계정이 없습니다.' };
     }
-    if (user.role !== 'ADMIN') {
+    const isAdmin = (user as any).role === 'ADMIN';
+    if (!isAdmin) {
       return { exists: true, isAdmin: false, message: '해당 계정은 관리자가 아닙니다.' };
     }
     return { exists: true, isAdmin: true, message: '관리자 계정이 확인되었습니다.' };
@@ -58,7 +59,7 @@ export class AuthService {
       if (!dto.adminEmail) throw new BadRequestException('관리자 이메일을 입력해주세요.');
       const admin = await this.prisma.user.findUnique({ where: { email: dto.adminEmail } });
       if (!admin) throw new NotFoundException('등록된 관리자 계정이 없습니다.');
-      if (admin.role !== 'ADMIN') throw new BadRequestException('해당 계정은 관리자가 아닙니다.');
+      if ((admin as any).role !== 'ADMIN') throw new BadRequestException('해당 계정은 관리자가 아닙니다.');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -147,6 +148,7 @@ export class AuthService {
       select: {
         id: true, email: true, name: true,
         profileImage: true, provider: true, createdAt: true,
+        role: true,
         memberships: {
           include: { family: { select: { id: true, name: true } } },
         },
@@ -163,7 +165,7 @@ export class AuthService {
     });
     return {
       accessToken,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, name: user.name, role: (user as any).role ?? 'ADMIN' },
     };
   }
 

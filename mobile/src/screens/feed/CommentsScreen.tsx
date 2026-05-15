@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/api/client';
 
 type Props = RootStackScreenProps<'Comments'>;
 
@@ -28,30 +29,68 @@ interface Comment {
   time: string;
 }
 
-const MOCK_COMMENTS: Comment[] = [
-  { id: '1', authorId: 'other1', emoji: '👵', name: '외할머니', text: '오늘 물감놀이 너무 즐거웠겠다 ❤️ 민준이 사진 보니까 할머니 너무 기뻐요!', time: '10분 전' },
-  { id: '2', authorId: 'other2', emoji: '👴', name: '외할아버지', text: '우리 민준이 잘했어요~ 😊 더 많이 찍어줘요~', time: '8분 전' },
-  { id: '3', authorId: 'other3', emoji: '👨', name: '아빠', text: '오늘도 씩씩하게 잘 다녀왔네! 오늘 저녁에 칭찬해줘야겠다 💪', time: '5분 전' },
-];
+function formatTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return '방금';
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  return `${Math.floor(hr / 24)}일 전`;
+}
 
-export default function CommentsScreen({ navigation }: Props) {
+export default function CommentsScreen({ navigation, route }: Props) {
+  const { postId } = route.params;
   const user = useAuthStore((s) => s.user);
-  const myId = user?.id ?? 'me';
+  const myId = user?.id ?? '';
 
   const [text, setText] = useState('');
-  const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const inputRef = useRef<TextInput>(null);
 
+  const loadComments = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get(`/comments/post/${postId}`);
+      const data: any[] = res.data ?? [];
+      setComments(data.map((c: any) => ({
+        id: c.id,
+        authorId: c.userId ?? c.user?.id ?? '',
+        emoji: c.user?.profileImage ? '' : '👤',
+        name: c.user?.name ?? '?',
+        text: c.content,
+        time: formatTime(c.createdAt),
+      })));
+    } catch {
+      setComments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [postId]);
+
+  useEffect(() => { loadComments(); }, [loadComments]);
+
   // ── 댓글 등록 ──────────────────────────────────────────────────────────────
-  const sendComment = () => {
+  const sendComment = async () => {
     if (!text.trim()) return;
-    setComments((prev) => [
-      ...prev,
-      { id: String(Date.now()), authorId: myId, emoji: '👩', name: user?.name ?? '나', text: text.trim(), time: '방금' },
-    ]);
-    setText('');
+    try {
+      const res = await api.post('/comments', { postId, content: text.trim() });
+      const c = res.data;
+      setComments((prev) => [...prev, {
+        id: c.id,
+        authorId: myId,
+        emoji: '👤',
+        name: user?.name ?? '나',
+        text: c.content,
+        time: '방금',
+      }]);
+      setText('');
+    } catch {
+      Alert.alert('오류', '댓글 등록에 실패했습니다.');
+    }
   };
 
   // ── 수정 시작 ──────────────────────────────────────────────────────────────
@@ -62,13 +101,18 @@ export default function CommentsScreen({ navigation }: Props) {
   };
 
   // ── 수정 완료 ──────────────────────────────────────────────────────────────
-  const submitEdit = () => {
+  const submitEdit = async () => {
     if (!editText.trim()) return;
-    setComments((prev) =>
-      prev.map((c) => (c.id === editingId ? { ...c, text: editText.trim(), time: '방금 수정됨' } : c))
-    );
-    setEditingId(null);
-    setEditText('');
+    try {
+      await api.patch(`/comments/${editingId}`, { content: editText.trim() });
+      setComments((prev) =>
+        prev.map((c) => (c.id === editingId ? { ...c, text: editText.trim(), time: '방금 수정됨' } : c))
+      );
+      setEditingId(null);
+      setEditText('');
+    } catch {
+      Alert.alert('오류', '댓글 수정에 실패했습니다.');
+    }
   };
 
   const cancelEdit = () => {
@@ -83,7 +127,14 @@ export default function CommentsScreen({ navigation }: Props) {
       {
         text: '삭제',
         style: 'destructive',
-        onPress: () => setComments((prev) => prev.filter((c) => c.id !== id)),
+        onPress: async () => {
+          try {
+            await api.delete(`/comments/${id}`);
+            setComments((prev) => prev.filter((c) => c.id !== id));
+          } catch {
+            Alert.alert('오류', '댓글 삭제에 실패했습니다.');
+          }
+        },
       },
     ]);
   };
@@ -109,14 +160,16 @@ export default function CommentsScreen({ navigation }: Props) {
         </View>
 
         {/* Comment list */}
-        <FlatList
-          data={comments}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
+        {isLoading
+          ? <View style={styles.loadingCenter}><ActivityIndicator size="large" color={Colors.primary} /></View>
+          : <FlatList
+              data={comments}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
           renderItem={({ item }) => {
             const isMine = item.authorId === myId;
             const isBeingEdited = editingId === item.id;
@@ -194,8 +247,7 @@ export default function CommentsScreen({ navigation }: Props) {
             </View>
           }
         />
-
-        {/* Input */}
+        }        {/* Input */}
         <View style={styles.inputRow}>
           <View style={styles.inputAvatar}>
             <Text style={{ fontSize: 18 }}>👩</Text>
@@ -228,6 +280,7 @@ export default function CommentsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundCard },
   safeArea: { flex: 1 },
+  loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   handle: {
     width: 44, height: 5, backgroundColor: Colors.border, borderRadius: 3,
     alignSelf: 'center', marginTop: Spacing.md, marginBottom: Spacing.sm,

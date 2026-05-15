@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,9 @@ import type { GroupType, Post } from '@/types';
 import { useFeedStore } from '@/store/feedStore';
 import PostCard from '@/components/common/PostCard';
 import GroupTabBar from '@/components/common/GroupTabBar';
+import api from '@/api/client';
+import { useAuthStore } from '@/store/authStore';
+import { useFamilyStore } from '@/store/familyStore';
 
 const { width: W } = Dimensions.get('window');
 type Props = TabScreenProps<'FeedTab'>;
@@ -26,68 +30,67 @@ const GROUP_TABS: { type: GroupType; label: string; emoji: string }[] = [
   { type: 'PATERNAL', label: '시댁', emoji: '👴'  },
 ];
 
-// 그룹별 댓글·반응·게시글 통계 (실제에선 API)
-const GROUP_STATS: Record<GroupType, { posts: number; comments: number; reactions: number }> = {
-  ALL:      { posts: 38, comments: 82, reactions: 208 },
-  MATERNAL: { posts: 21, comments: 43, reactions: 116 },
-  PATERNAL: { posts: 12, comments: 25, reactions: 77  },
-};
-
 const GROUP_CONFIG: Record<GroupType, { label: string; color: string; bg: string }> = {
   ALL:      { label: '전체', color: Colors.primary, bg: Colors.primaryPale },
   MATERNAL: { label: '친정', color: '#C4693A',      bg: '#FBE8DC'          },
   PATERNAL: { label: '시댁', color: '#3A6CB5',      bg: '#DCE8FB'          },
 };
 
-const MOCK_POSTS: Post[] = [
-  {
-    id: '1', familyId: '1', groupId: '1', groupType: 'ALL',
-    author: { id: '1', email: '', name: '엄마', provider: 'EMAIL', createdAt: '' },
-    imageUrl: 'https://picsum.photos/800/800?random=51',
-    caption: '오늘 어린이집에서 즐거운 물감놀이를 했어요 🎨 민준이가 처음으로 손바닥 도장을 찍었답니다!',
-    source: 'KIDSNOTE', reactions: [], comments: [], reactionCount: 25, commentCount: 7,
-    createdAt: '2026-05-14T09:00:00Z',
-  },
-  {
-    id: '2', familyId: '1', groupId: '2', groupType: 'MATERNAL',
-    author: { id: '1', email: '', name: '엄마', provider: 'EMAIL', createdAt: '' },
-    imageUrl: 'https://picsum.photos/800/800?random=52',
-    caption: '민준이가 처음으로 수영을 한 날이에요! 무서워하면서도 용감하게 도전했어요 🏊',
-    source: 'CAMERA', reactions: [], comments: [], reactionCount: 18, commentCount: 5,
-    createdAt: '2026-05-13T15:30:00Z',
-  },
-  {
-    id: '3', familyId: '1', groupId: '3', groupType: 'PATERNAL',
-    author: { id: '1', email: '', name: '엄마', provider: 'EMAIL', createdAt: '' },
-    imageUrl: 'https://picsum.photos/800/800?random=53',
-    caption: '공원에서 처음으로 자전거를 탄 날 ✨ 할머니 보여드리고 싶었어요 🚲',
-    source: 'GALLERY', reactions: [], comments: [], reactionCount: 31, commentCount: 9,
-    createdAt: '2026-05-12T11:00:00Z',
-  },
-  {
-    id: '4', familyId: '1', groupId: '1', groupType: 'ALL',
-    author: { id: '1', email: '', name: '엄마', provider: 'EMAIL', createdAt: '' },
-    imageUrl: 'https://picsum.photos/800/800?random=54',
-    caption: '어린이집 운동회날 🏅 달리기 1등 했어요! 온 가족이 응원해줘서 고마워요 ❤️',
-    source: 'KIDSNOTE', reactions: [], comments: [], reactionCount: 42, commentCount: 12,
-    createdAt: '2026-05-11T14:00:00Z',
-  },
-];
-
 export default function FeedScreen({ navigation }: Props) {
   const activeTab = useFeedStore((s) => s.activeTab);
   const setActiveTab = useFeedStore((s) => s.setActiveTab);
   const [refreshing, setRefreshing] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState<{ posts: number; comments: number; reactions: number }>({ posts: 0, comments: 0, reactions: 0 });
 
-  const filtered = activeTab === 'ALL' ? MOCK_POSTS : MOCK_POSTS.filter((p) => p.groupType === activeTab);
-  const stats = GROUP_STATS[activeTab];
+  const user = useAuthStore((s) => s.user);
+  const family = useFamilyStore((s) => s.family);
   const config = GROUP_CONFIG[activeTab];
+
+  const loadPosts = useCallback(async () => {
+    const familyId = user?.familyId ?? family?.id;
+    if (!familyId) { setPosts([]); return; }
+    setIsLoading(true);
+    try {
+      const params: any = { familyId, limit: 30 };
+      if (activeTab !== 'ALL') params.group = activeTab;
+      const res = await api.get('/posts', { params });
+      const data: any[] = res.data.data ?? [];
+      const mapped: Post[] = data.map((p: any) => ({
+        id: p.id,
+        familyId: p.familyId ?? familyId,
+        groupId: p.group?.id ?? '',
+        groupType: (p.group?.type ?? 'ALL') as GroupType,
+        author: { id: p.author?.id, email: '', name: p.author?.name ?? '?', provider: 'EMAIL' as const, createdAt: '' },
+        imageUrl: p.imageUrl,
+        caption: p.caption ?? '',
+        source: p.source ?? 'GALLERY',
+        reactions: p.reactions ?? [],
+        comments: [],
+        reactionCount: p._count?.reactions ?? 0,
+        commentCount: p._count?.comments ?? 0,
+        createdAt: p.createdAt,
+      }));
+      setPosts(mapped);
+      // 그룹 통계 계산
+      const reactionTotal = mapped.reduce((s, p) => s + p.reactionCount, 0);
+      const commentTotal  = mapped.reduce((s, p) => s + p.commentCount, 0);
+      setStats({ posts: mapped.length, comments: commentTotal, reactions: reactionTotal });
+    } catch {
+      setPosts([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeTab, user?.familyId, family?.id]);
+
+  useEffect(() => { loadPosts(); }, [loadPosts]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 900));
+    await loadPosts();
     setRefreshing(false);
-  }, []);
+  }, [loadPosts]);
 
   return (
     <View style={styles.container}>
@@ -115,31 +118,34 @@ export default function FeedScreen({ navigation }: Props) {
         <View style={styles.tabsContainer}>
           <GroupTabBar tabs={GROUP_TABS} active={activeTab} onChange={setActiveTab} />
           <View style={styles.countPill}>
-            <Text style={styles.countText}>{filtered.length}개</Text>
+            <Text style={styles.countText}>{posts.length}개</Text>
           </View>
         </View>
 
         {/* ─── Feed List ─── */}
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
-          }
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
-              onComment={() => navigation.navigate('Comments', { postId: item.id })}
+        {isLoading && !refreshing
+          ? <View style={styles.loadingCenter}><ActivityIndicator size="large" color={Colors.primary} /></View>
+          : <FlatList
+              data={posts}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
+              }
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
+              renderItem={({ item }) => (
+                <PostCard
+                  post={item}
+                  onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+                  onComment={() => navigation.navigate('Comments', { postId: item.id })}
+                />
+              )}
+              ListHeaderComponent={<GroupStatsBanner stats={stats} config={config} />}
+              ListEmptyComponent={<EmptyFeed />}
+              ListFooterComponent={<View style={{ height: 20 }} />}
             />
-          )}
-          ListHeaderComponent={<GroupStatsBanner stats={stats} config={config} />}
-          ListEmptyComponent={<EmptyFeed />}
-          ListFooterComponent={<View style={{ height: 20 }} />}
-        />
+        }
       </SafeAreaView>
     </View>
   );
@@ -185,6 +191,7 @@ function EmptyFeed() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   safeArea: { flex: 1 },
+  loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.sm,

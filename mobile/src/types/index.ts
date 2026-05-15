@@ -29,6 +29,7 @@ export interface User {
   profileImage?: string;
   provider: AuthProvider;
   createdAt: string;
+  familyId?: string;             // 생성/가입한 가족 ID
 }
 
 export interface AuthState {

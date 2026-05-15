@@ -79,6 +79,8 @@ export default function LoginScreen({ navigation, route }: Props) {
 
   const [isLoading, setIsLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+  const loginWithEmail = useAuthStore((s) => s.loginWithEmail);
+  const registerWithEmail = useAuthStore((s) => s.registerWithEmail);
 
   // ── 초대 링크로 진입한 경우: 회원가입 모드로 자동 전환 + 필드 사전 입력 ──
   React.useEffect(() => {
@@ -103,14 +105,11 @@ export default function LoginScreen({ navigation, route }: Props) {
     }
     setIsLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-      setAuth(
-        { id: '1', email, name: '사용자', provider: 'EMAIL', createdAt: new Date().toISOString() },
-        'mock-token',
-      );
-      navigation.replace('FamilyGroupSetup');
-    } catch {
-      Alert.alert('로그인 실패', '이메일 또는 비밀번호를 확인해주세요.');
+      await loginWithEmail(email.trim(), password);
+      navigation.replace('Main');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? '이메일 또는 비밀번호를 확인해주세요.';
+      Alert.alert('로그인 실패', msg);
     } finally {
       setIsLoading(false);
     }
@@ -185,14 +184,18 @@ export default function LoginScreen({ navigation, route }: Props) {
 
     setIsLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 900));
-      setAuth(
-        { id: '1', email: signupEmail, name: signupName.trim(), provider: 'EMAIL', createdAt: new Date().toISOString() },
-        'mock-token',
-      );
+      await registerWithEmail({
+        name: signupName.trim(),
+        email: signupEmail.trim(),
+        password: signupPassword,
+        role: signupRole,
+        adminEmail: signupRole === 'MEMBER' ? adminEmail.trim() : undefined,
+        profileEmoji: selectedEmoji ?? undefined,
+      });
       navigation.replace('FamilyGroupSetup');
-    } catch {
-      Alert.alert('가입 실패', '잠시 후 다시 시도해주세요.');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? '잠시 후 다시 시도해주세요.';
+      Alert.alert('가입 실패', msg);
     } finally {
       setIsLoading(false);
     }

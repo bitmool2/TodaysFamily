@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,21 +16,27 @@ import { useAuthStore } from '@/store/authStore';
 import { useUploadStore } from '@/store/uploadStore';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { TabScreenProps } from '@/types/navigation';
+import api from '@/api/client';
+import { useFamilyStore } from '@/store/familyStore';
 
 const { width: W } = Dimensions.get('window');
 type Props = TabScreenProps<'HomeTab'>;
 
-// 업로드 시간 기준 최근 5장
-const RECENT_UPLOADS = [
-  { id: '1', uri: 'https://picsum.photos/200/200?random=31', date: '오늘',   group: '전체', reactions: 12 },
-  { id: '2', uri: 'https://picsum.photos/200/200?random=32', date: '어제',   group: '친정', reactions: 8  },
-  { id: '3', uri: 'https://picsum.photos/200/200?random=33', date: '어제',   group: '시댁', reactions: 15 },
-  { id: '4', uri: 'https://picsum.photos/200/200?random=34', date: '3일 전', group: '전체', reactions: 5  },
-  { id: '5', uri: 'https://picsum.photos/200/200?random=35', date: '4일 전', group: '친정', reactions: 9  },
-];
+interface RecentUpload {
+  id: string;
+  uri: string;
+  date: string;
+  group: string;
+  reactions: number;
+}
 
-// 최근 5건 업로드의 반응 합계
-const RECENT_REACTION_TOTAL = RECENT_UPLOADS.reduce((sum, u) => sum + u.reactions, 0);
+function formatDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const day = Math.floor(diff / 86400000);
+  if (day === 0) return '오늘';
+  if (day === 1) return '어제';
+  return `${day}일 전`;
+}
 
 const AI_MEMORIES = [
   {
@@ -52,17 +59,38 @@ const AI_MEMORIES = [
   },
 ];
 
-const ALERTS = [
-  { id: '1', icon: '👵', text: '외할머니가 사진에 ❤️ 반응을 보내셨어요', time: '5분 전' },
-  { id: '2', icon: '📋', text: '키즈노트 새 알림: 민준이의 오늘 기록이 도착했어요', time: '1시간 전' },
-  { id: '3', icon: '💬', text: '할아버지가 댓글을 남기셨어요: "우리 손자 최고!"', time: '2시간 전' },
-];
-
 export default function HomeScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const autoUploadEnabled = useUploadStore((s) => s.autoUploadEnabled);
   const recentAutoUpload = useUploadStore((s) => s.recentAutoUpload);
   const newPhotoActive = autoUploadEnabled && recentAutoUpload;
+  const family = useFamilyStore((s) => s.family);
+
+  const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
+  const [reactionTotal, setReactionTotal] = useState(0);
+
+  const loadRecent = useCallback(async () => {
+    const familyId = user?.familyId ?? family?.id;
+    if (!familyId) return;
+    try {
+      const res = await api.get('/posts', { params: { familyId, limit: 5 } });
+      const data: any[] = res.data.data ?? [];
+      const GROUP_LABEL: Record<string, string> = { ALL: '전체', MATERNAL: '친정', PATERNAL: '시댁' };
+      const uploads: RecentUpload[] = data.map((p: any) => ({
+        id: p.id,
+        uri: p.imageUrl,
+        date: formatDate(p.createdAt),
+        group: GROUP_LABEL[p.group?.type ?? 'ALL'] ?? '전체',
+        reactions: p._count?.reactions ?? 0,
+      }));
+      setRecentUploads(uploads);
+      setReactionTotal(uploads.reduce((sum, u) => sum + u.reactions, 0));
+    } catch {
+      setRecentUploads([]);
+    }
+  }, [user?.familyId, family?.id]);
+
+  useEffect(() => { loadRecent(); }, [loadRecent]);
 
   const today = new Date();
   const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][today.getDay()]})`;
@@ -123,7 +151,7 @@ export default function HomeScreen({ navigation }: Props) {
               <StatCard
                 emoji="❤️"
                 label={`최근업로드\n가족 반응`}
-                value={`${RECENT_REACTION_TOTAL}개`}
+                value={`${reactionTotal}개`}
                 bg="#FDE8E8"
                 accent="#D94F3D"
               />
@@ -157,7 +185,7 @@ export default function HomeScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={RECENT_UPLOADS}
+              data={recentUploads}
               keyExtractor={(i) => i.id}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -211,18 +239,10 @@ export default function HomeScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             <View style={styles.alertList}>
-              {ALERTS.map((a) => (
-                <TouchableOpacity key={a.id} style={styles.alertRow} activeOpacity={0.8}>
-                  <View style={styles.alertAvatar}>
-                    <Text style={styles.alertEmoji}>{a.icon}</Text>
-                  </View>
-                  <View style={styles.alertContent}>
-                    <Text style={styles.alertText} numberOfLines={2}>{a.text}</Text>
-                    <Text style={styles.alertTime}>{a.time}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-                </TouchableOpacity>
-              ))}
+              {/* 실제 알림은 별도 API 연동 예정 */}
+              <View style={styles.emptyAlert}>
+                <Text style={styles.emptyAlertText}>새로운 소식이 없어요 🌿</Text>
+              </View>
             </View>
           </View>
 
@@ -313,6 +333,8 @@ const styles = StyleSheet.create({
   memoryCaption: { fontSize: FontSize.sm, color: Colors.textSecondary },
   memoryLink: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: 4 },
   alertList: { backgroundColor: Colors.backgroundCard, borderRadius: Radius.xl, overflow: 'hidden', ...Shadow.sm },
+  emptyAlert: { padding: Spacing.xl, alignItems: 'center' },
+  emptyAlertText: { fontSize: FontSize.sm, color: Colors.textMuted },
   alertRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg,
     borderBottomWidth: 1, borderBottomColor: Colors.borderLight,

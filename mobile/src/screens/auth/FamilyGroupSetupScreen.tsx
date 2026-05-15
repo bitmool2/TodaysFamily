@@ -6,12 +6,16 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { GroupType } from '@/types';
+import { useFamilyStore } from '@/store/familyStore';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = RootStackScreenProps<'FamilyGroupSetup'>;
 
@@ -61,15 +65,32 @@ const CARDS: GroupCard[] = [
 
 export default function FamilyGroupSetupScreen({ navigation }: Props) {
   const [selected, setSelected] = useState<GroupType[]>(['ALL']);
+  const [isCreating, setIsCreating] = useState(false);
+  const createFamily = useFamilyStore((s) => s.createFamily);
+  const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
 
   const toggle = (type: GroupType) =>
     setSelected((prev) =>
       prev.includes(type) ? prev.filter((g) => g !== type) : [...prev, type]
     );
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!selected.length) return;
-    navigation.replace('Main');
+    setIsCreating(true);
+    try {
+      await createFamily(`${user?.name ?? '우리'}의 가족`);
+      const family = useFamilyStore.getState().family;
+      if (family && user) {
+        setUser({ ...user, familyId: family.id });
+      }
+      navigation.replace('Main');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? '가족 그룹 생성에 실패했습니다.';
+      Alert.alert('오류', msg);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -165,13 +186,18 @@ export default function FamilyGroupSetupScreen({ navigation }: Props) {
             </Text>
           </View>
           <TouchableOpacity
-            style={[styles.nextBtn, !selected.length && styles.nextBtnDisabled]}
+            style={[styles.nextBtn, (!selected.length || isCreating) && styles.nextBtnDisabled]}
             onPress={handleNext}
-            disabled={!selected.length}
+            disabled={!selected.length || isCreating}
             activeOpacity={0.85}
           >
-            <Text style={styles.nextBtnText}>시작하기</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
+            {isCreating
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <>
+                  <Text style={styles.nextBtnText}>시작하기</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </>
+            }
           </TouchableOpacity>
         </View>
       </SafeAreaView>

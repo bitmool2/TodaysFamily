@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,9 @@ import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { TabScreenProps } from '@/types/navigation';
 import type { GroupType } from '@/types';
 import GroupTabBar from '@/components/common/GroupTabBar';
+import api from '@/api/client';
+import { useAuthStore } from '@/store/authStore';
+import { useFamilyStore } from '@/store/familyStore';
 
 const { width: W, height: H } = Dimensions.get('window');
 type Props = TabScreenProps<'FamilyTab'>;
@@ -27,9 +31,6 @@ const GROUP_EMOJI_OPTIONS = [
   '💐', '🎋', '🏡', '🌻', '🌷', '🎎', '🎍', '🍵',
   '🧧', '🎑', '🫖', '🌾', '🎐', '🌙', '⛩️', '🏮',
 ];
-
-// 현재 로그인 유저 ID (목업) — 실제에서는 authStore에서 가져옴
-const MY_USER_ID = '1'; // isOwner인 멤버의 id
 
 type GroupTabItem = { type: GroupType; label: string; emoji: string; imageUri?: string };
 
@@ -46,49 +47,52 @@ interface Member {
   posts: number; comments: number; reactions: number;
 }
 
-const MEMBERS: Member[] = [
-  { id: '1', name: '엄마',     role: '엄마',     emoji: '👩', group: 'ALL',      isOwner: true, bio: '민준이의 든든한 엄마 🌸', posts: 24, comments: 18, reactions: 42 },
-  { id: '2', name: '아빠',     role: '아빠',     emoji: '👨', group: 'ALL',      bio: '주말엔 민준이랑 공원 산책 🚴', posts: 6,  comments: 11, reactions: 31 },
-  { id: '3', name: '외할머니', role: '외할머니', emoji: '👵', group: 'MATERNAL', bio: '손주 사진 기다리는 중 ❤️',       posts: 1,  comments: 28, reactions: 56 },
-  { id: '4', name: '외할아버지',role: '외할아버지',emoji: '👴',group: 'MATERNAL',                                        posts: 0,  comments: 7,  reactions: 22 },
-  { id: '5', name: '할머니',   role: '시어머니', emoji: '👵', group: 'PATERNAL', bio: '민준이 보고 싶어요 😊',          posts: 0,  comments: 14, reactions: 38 },
-  { id: '6', name: '할아버지', role: '시아버지', emoji: '👴', group: 'PATERNAL',                                        posts: 0,  comments: 4,  reactions: 19 },
-];
-
-// 멤버별 최근 활동 목업 데이터
-const MEMBER_ACTIVITY: Record<string, { type: 'post' | 'comment' | 'reaction'; text: string; time: string }[]> = {
-  '1': [
-    { type: 'post',     text: '어린이집 물감놀이 사진을 공유했어요 🎨',     time: '오늘' },
-    { type: 'comment',  text: '오늘도 민준이가 너무 귀여워요 💕',            time: '1시간 전' },
-    { type: 'reaction', text: '할머니 사진에 ❤️ 반응을 남겼어요',            time: '3시간 전' },
-    { type: 'post',     text: '수영 첫 도전 사진을 공유했어요 🏊',           time: '어제' },
-  ],
-  '2': [
-    { type: 'comment',  text: '오늘 씩씩하게 잘 다녀왔네! 💪',              time: '5시간 전' },
-    { type: 'reaction', text: '엄마 사진에 😊 반응을 남겼어요',              time: '어제' },
-    { type: 'comment',  text: '우리 아들 최고야 🎉',                         time: '2일 전' },
-  ],
-  '3': [
-    { type: 'comment',  text: '오늘 물감놀이 너무 즐거웠겠다 ❤️',           time: '10분 전' },
-    { type: 'reaction', text: '엄마 사진에 ❤️ 반응을 남겼어요',              time: '2시간 전' },
-    { type: 'comment',  text: '우리 민준이 잘했어요~ 더 많이 찍어줘요~',     time: '어제' },
-    { type: 'reaction', text: '아빠 사진에 👏 반응을 남겼어요',              time: '어제' },
-  ],
-  '4': [{ type: 'comment', text: '민준이 보고 싶다 😊', time: '3일 전' }],
-  '5': [
-    { type: 'comment',  text: '손자 너무 예뻐요 ❤️',                         time: '어제' },
-    { type: 'reaction', text: '엄마 사진에 ❤️ 반응을 남겼어요',              time: '2일 전' },
-  ],
-  '6': [{ type: 'comment', text: '우리 손자 최고!', time: '2시간 전' }],
-};
-
 export default function FamilyScreen({ navigation }: Props) {
+  const user = useAuthStore((s) => s.user);
+  const family = useFamilyStore((s) => s.family);
+  const fetchFamily = useFamilyStore((s) => s.fetchFamily);
+
   const [activeTab, setActiveTab] = useState<GroupType>('ALL');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [groupTabs, setGroupTabs] = useState<GroupTabItem[]>(DEFAULT_GROUP_TABS);
   const [editingGroup, setEditingGroup] = useState<GroupType | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const isOwner = MEMBERS.find((m) => m.id === MY_USER_ID)?.isOwner ?? false;
+  const myId = user?.id ?? '';
+  const familyId = user?.familyId ?? family?.id;
+  const isOwner = family?.ownerId === myId;
+
+  const loadFamily = useCallback(async () => {
+    if (!familyId) return;
+    setIsLoading(true);
+    try {
+      await fetchFamily(familyId);
+      const f = useFamilyStore.getState().family;
+      if (!f) return;
+      const GROUP_MAP: Record<string, GroupType> = {};
+      f.groups.forEach((g) => { GROUP_MAP[g.id] = g.type as GroupType; });
+      const mapped: Member[] = f.members.map((m: any) => ({
+        id: m.userId,
+        name: m.user?.name ?? '?',
+        role: m.role ?? '멤버',
+        emoji: m.user?.profileImage ?? '👤',
+        group: 'ALL' as GroupType,
+        isOwner: m.userId === f.ownerId,
+        bio: undefined,
+        posts: 0,
+        comments: 0,
+        reactions: 0,
+      }));
+      setMembers(mapped);
+    } catch {
+      setMembers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [familyId]);
+
+  useEffect(() => { loadFamily(); }, [loadFamily]);
 
   /** 갤러리에서 사진 선택 → 200×200으로 리사이즈 + 품질 0.7 압축 → imageUri 저장 */
   const handlePickGroupPhoto = async () => {
@@ -120,8 +124,8 @@ export default function FamilyScreen({ navigation }: Props) {
   };
 
   const filteredMembers = activeTab === 'ALL'
-    ? MEMBERS
-    : MEMBERS.filter((m) => m.group === activeTab || m.group === 'ALL');
+    ? members
+    : members.filter((m) => m.group === activeTab || m.group === 'ALL');
 
   const groupComments  = filteredMembers.reduce((s, m) => s + m.comments,  0);
   const groupReactions = filteredMembers.reduce((s, m) => s + m.reactions, 0);
@@ -142,6 +146,7 @@ export default function FamilyScreen({ navigation }: Props) {
         {/* ─── Header ─── */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>가족</Text>
+          {isLoading && <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: Spacing.md }} />}
           <TouchableOpacity
             style={[styles.inviteBtn, { backgroundColor: groupConfig.bg }]}
             onPress={() => navigation.navigate('FamilyInvite', { groupType: activeTab })}
@@ -285,7 +290,7 @@ export default function FamilyScreen({ navigation }: Props) {
             {/* 최근 활동 목록 */}
             <Text style={styles.sheetSectionTitle}>최근 활동</Text>
             <FlatList
-              data={MEMBER_ACTIVITY[selectedMember.id] ?? []}
+              data={[]} // 실제 활동 이력 API 연동 예정
               keyExtractor={(_, i) => String(i)}
               style={styles.sheetList}
               contentContainerStyle={{ paddingBottom: 32 }}

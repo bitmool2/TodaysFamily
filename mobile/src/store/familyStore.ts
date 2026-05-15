@@ -1,33 +1,62 @@
 import { create } from 'zustand';
-import type { Family, Group, FamilyMember, Child, GroupType } from '@/types';
+import api from '@/api/client';
+
+interface FamilyGroup {
+  id: string;
+  type: 'ALL' | 'MATERNAL' | 'PATERNAL';
+  name: string;
+  emoji?: string | null;
+  imageUri?: string | null;
+}
+
+interface FamilyMember {
+  id: string;
+  userId: string;
+  role: string;
+  user: { id: string; name: string; email: string; profileImage: string | null };
+}
+
+interface Family {
+  id: string;
+  name: string;
+  ownerId: string;
+  groups: FamilyGroup[];
+  members: FamilyMember[];
+}
 
 interface FamilyStore {
   family: Family | null;
-  groups: Group[];
-  members: FamilyMember[];
-  children: Child[];
-  selectedGroupType: GroupType;
-
+  isLoading: boolean;
+  createFamily: (name: string) => Promise<void>;
+  fetchFamily: (familyId: string) => Promise<void>;
   setFamily: (family: Family) => void;
-  setGroups: (groups: Group[]) => void;
-  setMembers: (members: FamilyMember[]) => void;
-  setChildren: (children: Child[]) => void;
-  setSelectedGroupType: (type: GroupType) => void;
-  reset: () => void;
+  clearFamily: () => void;
 }
 
 export const useFamilyStore = create<FamilyStore>((set) => ({
   family: null,
-  groups: [],
-  members: [],
-  children: [],
-  selectedGroupType: 'ALL',
+  isLoading: false,
 
   setFamily: (family) => set({ family }),
-  setGroups: (groups) => set({ groups }),
-  setMembers: (members) => set({ members }),
-  setChildren: (children) => set({ children }),
-  setSelectedGroupType: (type) => set({ selectedGroupType: type }),
-  reset: () =>
-    set({ family: null, groups: [], members: [], children: [] }),
+  clearFamily: () => set({ family: null }),
+
+  createFamily: async (name) => {
+    set({ isLoading: true });
+    try {
+      const res = await api.post('/families', { name });
+      set({ family: res.data });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  fetchFamily: async (familyId) => {
+    set({ isLoading: true });
+    try {
+      const res = await api.get(`/families/${familyId}`);
+      set({ family: res.data });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 }));

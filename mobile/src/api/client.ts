@@ -1,13 +1,17 @@
 import axios from 'axios';
+import { Platform } from 'react-native';
 
-// ─── Port assignment ──────────────────────────────────────────────────────────
-// debugfit_claude : Backend 3001
-// debugfit_cursor : Backend 3011
-// GonguManager    : Backend 3021
-// 오늘의가족       : Backend 3031  ← this project
+// ─── 서버 주소 설정 ────────────────────────────────────────────────────────────
+// 안드로이드 에뮬레이터: 10.0.2.2 (host loopback)
+// 안드로이드 실기기:     PC의 실제 IP 주소 (예: 192.168.0.x)
+// iOS 시뮬레이터:        localhost
 // ─────────────────────────────────────────────────────────────────────────────
+const DEV_HOST = Platform.OS === 'android'
+  ? '10.100.0.230'  // 실기기: PC LAN IP (에뮬레이터는 10.0.2.2로 변경)
+  : 'localhost';
+
 const BASE_URL = __DEV__
-  ? 'http://localhost:3031/api/v1'
+  ? `http://${DEV_HOST}:3031/api/v1`
   : 'https://your-render-url.onrender.com/api/v1';
 
 const api = axios.create({
