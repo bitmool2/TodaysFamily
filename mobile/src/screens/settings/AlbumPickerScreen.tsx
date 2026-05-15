@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Alert, ActivityIndicator, Animated,
+  Alert, ActivityIndicator, Animated, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +34,8 @@ export default function AlbumPickerScreen({ navigation }: Props) {
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [uploadedCount, setUploadedCount] = useState(0);
+  const [manualAlbumName, setManualAlbumName] = useState('');
+  const [limitedAccess, setLimitedAccess] = useState(false);
   const autoUploadAlbum = useUploadStore((s) => s.autoUploadAlbum);
   const setAutoUploadAlbum = useUploadStore((s) => s.setAutoUploadAlbum);
 
@@ -68,9 +70,9 @@ export default function AlbumPickerScreen({ navigation }: Props) {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다.', [
-          { text: '확인', onPress: () => navigation.goBack() },
-        ]);
+        // 권한 거부 → 수동 입력 모드로 전환
+        setLimitedAccess(true);
+        if (autoUploadAlbum) setManualAlbumName(autoUploadAlbum);
         setLoadingAlbums(false);
         return;
       }
@@ -79,12 +81,20 @@ export default function AlbumPickerScreen({ navigation }: Props) {
         .filter((a) => a.assetCount > 0)
         .sort((a, b) => b.assetCount - a.assetCount)
         .map((a) => ({ id: a.id, title: a.title, assetCount: a.assetCount }));
-      setAlbums(albumItems);
-      // 현재 설정된 앨범 선택 상태 복원
-      const current = albumItems.find((a) => a.title === autoUploadAlbum);
-      if (current) setSelectedAlbumId(current.id);
+
+      if (albumItems.length === 0) {
+        // Expo Go Android 제한: 앨범 없이 반환 → 수동 입력 모드로 전환
+        setLimitedAccess(true);
+        if (autoUploadAlbum) setManualAlbumName(autoUploadAlbum);
+      } else {
+        setAlbums(albumItems);
+        const current = albumItems.find((a) => a.title === autoUploadAlbum);
+        if (current) setSelectedAlbumId(current.id);
+      }
     } catch {
-      Alert.alert('오류', '앨범을 불러오는 중 문제가 발생했습니다.');
+      // Expo Go Android 미디어 라이브러리 제한으로 예외 발생 → 수동 입력 모드
+      setLimitedAccess(true);
+      if (autoUploadAlbum) setManualAlbumName(autoUploadAlbum);
     } finally {
       setLoadingAlbums(false);
     }
@@ -95,22 +105,29 @@ export default function AlbumPickerScreen({ navigation }: Props) {
   };
 
   const handleConfirm = () => {
-    const album = albums.find((a) => a.id === selectedAlbumId);
-    if (!album) {
-      Alert.alert('앨범 선택', '앨범을 선택해주세요.'); return;
+    // 수동 입력 모드
+    if (limitedAccess) {
+      const name = manualAlbumName.trim();
+      if (!name) { Alert.alert('앨범 이름 입력', '앨범 이름을 입력해주세요.'); return; }
+      Alert.alert(
+        '자동 업로드 설정',
+        `"${name}" 앨범으로 자동 업로드가 설정됩니다.\n\n최근 추가된 사진 최대 ${AUTO_UPLOAD_MAX}장까지만 자동 업로드됩니다.`,
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '설정 완료', onPress: () => { setAutoUploadAlbum(name); setPhase('monitoring'); } },
+        ]
+      );
+      return;
     }
+    // 목록 선택 모드
+    const album = albums.find((a) => a.id === selectedAlbumId);
+    if (!album) { Alert.alert('앨범 선택', '앨범을 선택해주세요.'); return; }
     Alert.alert(
       '자동 업로드 설정',
       `"${album.title}" 앨범에 새 사진이 추가되면 자동으로 기록에 추가됩니다.\n\n최근 추가된 사진 최대 ${AUTO_UPLOAD_MAX}장까지만 자동 업로드됩니다.`,
       [
         { text: '취소', style: 'cancel' },
-        {
-          text: '설정 완료',
-          onPress: () => {
-            setAutoUploadAlbum(album.title);
-            setPhase('monitoring');
-          },
-        },
+        { text: '설정 완료', onPress: () => { setAutoUploadAlbum(album.title); setPhase('monitoring'); } },
       ]
     );
   };
@@ -118,7 +135,10 @@ export default function AlbumPickerScreen({ navigation }: Props) {
   // ─── Phase: picking ───────────────────────────────────────────
   if (phase === 'picking') {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -142,12 +162,39 @@ export default function AlbumPickerScreen({ navigation }: Props) {
               <ActivityIndicator size="large" color={Colors.primary} />
               <Text style={styles.loadingText}>앨범 불러오는 중...</Text>
             </View>
+          ) : limitedAccess ? (
+            /* ── Expo Go 제한 환경 · 수동 입력 모드 ── */
+            <View style={styles.manualWrap}>
+              <View style={styles.limitedNoticeBanner}>
+                <Ionicons name="warning-outline" size={16} color="#C4693A" />
+                <Text style={styles.limitedNoticeText}>
+                  현재 환경에서는 앨범 목록을 직접 불러올 수 없어요.{'\n'}
+                  기기의 <Text style={styles.limitedNoticeBold}>갤러리 앱에서 앨범 이름</Text>을 확인 후 아래에 입력해주세요.
+                </Text>
+              </View>
+              <Text style={styles.manualLabel}>앨범 이름 직접 입력</Text>
+              <TextInput
+                style={styles.manualInput}
+                value={manualAlbumName}
+                onChangeText={setManualAlbumName}
+                placeholder="예) 카메라, 스크린샷, 즐겨찾기"
+                placeholderTextColor={Colors.textMuted}
+                returnKeyType="done"
+              />
+              {manualAlbumName.trim().length > 0 && (
+                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.85}>
+                  <Ionicons name="checkmark" size={20} color="#fff" />
+                  <Text style={styles.confirmBtnText}>이 앨범으로 자동 업로드 설정</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           ) : (
             <FlatList
               data={albums}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.albumList}
               ItemSeparatorComponent={() => <View style={styles.albumDivider} />}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const isSelected = selectedAlbumId === item.id;
                 return (
@@ -156,7 +203,6 @@ export default function AlbumPickerScreen({ navigation }: Props) {
                     onPress={() => handleSelectAlbum(item)}
                     activeOpacity={0.75}
                   >
-                    {/* 썸네일 — 실제 앨범은 기본 아이콘으로 표시 */}
                     <View style={[styles.albumThumb, isSelected && { backgroundColor: Colors.primary + '22' }]}>
                       <Ionicons
                         name={
@@ -184,8 +230,8 @@ export default function AlbumPickerScreen({ navigation }: Props) {
             />
           )}
 
-          {/* 확인 버튼 */}
-          {selectedAlbumId && (
+          {/* 확인 버튼 (목록 선택 모드) */}
+          {!limitedAccess && selectedAlbumId && (
             <View style={styles.confirmBtnWrap}>
               <View style={styles.confirmHint}>
                 <Ionicons name="warning-outline" size={14} color="#C4693A" />
@@ -200,7 +246,7 @@ export default function AlbumPickerScreen({ navigation }: Props) {
             </View>
           )}
         </SafeAreaView>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -321,6 +367,21 @@ const styles = StyleSheet.create({
   infoBold: { fontWeight: FontWeight.bold },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   loadingText: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  // 수동 입력 모드 (Expo Go 제한 환경)
+  manualWrap: { flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl, gap: Spacing.xl },
+  limitedNoticeBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
+    backgroundColor: '#FBE8DC', borderRadius: Radius.xl, padding: Spacing.lg,
+  },
+  limitedNoticeText: { flex: 1, fontSize: FontSize.sm, color: '#7A3A1A', lineHeight: 20 },
+  limitedNoticeBold: { fontWeight: FontWeight.bold },
+  manualLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.textSecondary },
+  manualInput: {
+    borderWidth: 1.5, borderColor: Colors.borderLight, borderRadius: Radius.xl,
+    paddingHorizontal: Spacing.xl, paddingVertical: 14,
+    fontSize: FontSize.base, color: Colors.textPrimary,
+    backgroundColor: Colors.backgroundCard,
+  },
   albumList: { paddingHorizontal: Spacing.xl },
   albumDivider: { height: 1, backgroundColor: Colors.borderLight, marginLeft: 68 + Spacing.xl },
   albumRow: {
