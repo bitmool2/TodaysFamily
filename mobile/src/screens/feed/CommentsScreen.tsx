@@ -247,7 +247,9 @@ export default function CommentsScreen({ navigation, route }: Props) {
             </View>
           }
         />
-        }        {/* Input */}
+        }
+
+        {/* Input */}
         <View style={styles.inputRow}>
           <View style={styles.inputAvatar}>
             <Text style={{ fontSize: 18 }}>👩</Text>
