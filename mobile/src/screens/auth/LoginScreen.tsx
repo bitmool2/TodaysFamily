@@ -11,9 +11,11 @@ import {
   Alert,
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import type { RootStackScreenProps } from '@/types/navigation';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
@@ -25,11 +27,12 @@ type Props = RootStackScreenProps<'Login'>;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const PROFILE_EMOJIS = ['👩', '👨', '👵', '👴', '👧', '👦', '🧑', '👶', '🐶', '🐱', '🌸', '⭐'];
+
 function validatePassword(pw: string): string | null {
   if (pw.length < 8) return '비밀번호는 8자 이상이어야 합니다.';
   if (!/[A-Za-z]/.test(pw)) return '영문자를 포함해야 합니다.';
   if (!/[0-9]/.test(pw)) return '숫자를 포함해야 합니다.';
-  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pw)) return '특수문자를 포함해야 합니다.';
   return null;
 }
 
@@ -48,6 +51,11 @@ export default function LoginScreen({ navigation }: Props) {
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [showSignupPwConfirm, setShowSignupPwConfirm] = useState(false);
+
+  // Profile avatar (emoji or image URI)
+  const [profileEmoji, setProfileEmoji] = useState('👩');
+  const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
+  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
 
   // Validation errors
   const [nameError, setNameError] = useState('');
@@ -166,12 +174,35 @@ export default function LoginScreen({ navigation }: Props) {
     setSignupName(''); setSignupEmail(''); setSignupPassword('');
     setSignupPasswordConfirm(''); setNameError(''); setEmailError('');
     setPwError(''); setPwConfirmError(''); setEmailAvailable(null);
+    setProfileEmoji('👩'); setProfileImageUri(null);
+  };
+
+  const handlePickProfileImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('권한 필요', '사진 접근 권한이 필요합니다.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setProfileImageUri(result.assets[0].uri);
+    }
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scroll} bounces={false} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
           {/* Hero section */}
           <View style={styles.hero}>
@@ -263,6 +294,36 @@ export default function LoginScreen({ navigation }: Props) {
 
               <Text style={styles.signupTitle}>회원가입</Text>
 
+              {/* 프로필 아바타 선택 */}
+              <View style={styles.avatarSection}>
+                <TouchableOpacity
+                  style={styles.avatarCircle}
+                  onPress={() => setEmojiPickerVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  {profileImageUri ? (
+                    <View style={styles.avatarImageWrap}>
+                      {/* expo-image 없어도 기본 Image로 표시 */}
+                      <Text style={{ fontSize: 44 }}>{profileEmoji}</Text>
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 44 }}>{profileEmoji}</Text>
+                  )}
+                  <View style={styles.avatarEditBadge}>
+                    <Ionicons name="pencil" size={12} color="#fff" />
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.avatarHint}>프로필 사진을 선택해주세요</Text>
+                <View style={styles.avatarActions}>
+                  <TouchableOpacity style={styles.avatarActionBtn} onPress={() => setEmojiPickerVisible(true)}>
+                    <Text style={styles.avatarActionText}>😊 이모지 선택</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.avatarActionBtn} onPress={handlePickProfileImage}>
+                    <Text style={styles.avatarActionText}>📷 사진 선택</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {/* 사용자명 */}
               <InputField
                 label="사용자명"
@@ -315,7 +376,7 @@ export default function LoginScreen({ navigation }: Props) {
                 icon="lock-closed-outline"
                 value={signupPassword}
                 onChangeText={(t) => { setSignupPassword(t); setPwError(''); }}
-                placeholder="8자 이상, 영문·숫자·특수문자 포함"
+                placeholder="8자 이상, 영문·숫자 포함"
                 secureTextEntry={!showSignupPw}
                 rightIcon={showSignupPw ? 'eye-off-outline' : 'eye-outline'}
                 onRightIconPress={() => setShowSignupPw(!showSignupPw)}
@@ -337,7 +398,7 @@ export default function LoginScreen({ navigation }: Props) {
               />
 
               <View style={styles.pwHint}>
-                <Text style={styles.pwHintText}>· 8자 이상  · 영문 포함  · 숫자 포함  · 특수문자 포함</Text>
+                <Text style={styles.pwHintText}>· 8자 이상  · 영문 포함  · 숫자 포함</Text>
               </View>
 
               <TouchableOpacity
@@ -379,6 +440,31 @@ export default function LoginScreen({ navigation }: Props) {
           </Text>
         </ScrollView>
       </SafeAreaView>
+
+      {/* ─── Emoji Picker Modal ─── */}
+      <Modal
+        visible={emojiPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEmojiPickerVisible(false)}
+      >
+        <TouchableOpacity style={styles.emojiBackdrop} activeOpacity={1} onPress={() => setEmojiPickerVisible(false)} />
+        <View style={styles.emojiSheet}>
+          <View style={styles.emojiSheetHandle} />
+          <Text style={styles.emojiSheetTitle}>이모지 선택</Text>
+          <View style={styles.emojiGrid}>
+            {PROFILE_EMOJIS.map((e) => (
+              <TouchableOpacity
+                key={e}
+                style={[styles.emojiItem, profileEmoji === e && !profileImageUri && styles.emojiItemSelected]}
+                onPress={() => { setProfileEmoji(e); setProfileImageUri(null); setEmojiPickerVisible(false); }}
+              >
+                <Text style={{ fontSize: 32 }}>{e}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -514,4 +600,36 @@ const styles = StyleSheet.create({
     lineHeight: 18, paddingBottom: Spacing.xl,
   },
   termsLink: { color: Colors.primary, textDecorationLine: 'underline' },
+  // Avatar section
+  avatarSection: { alignItems: 'center', paddingVertical: Spacing.md, gap: Spacing.sm },
+  avatarCircle: {
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: Colors.primaryPale, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3, borderColor: Colors.primary + '44', position: 'relative',
+  },
+  avatarImageWrap: { width: 88, height: 88, borderRadius: 44, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  avatarEditBadge: {
+    position: 'absolute', bottom: 2, right: 2, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+  },
+  avatarHint: { fontSize: FontSize.xs, color: Colors.textMuted },
+  avatarActions: { flexDirection: 'row', gap: Spacing.md },
+  avatarActionBtn: {
+    backgroundColor: Colors.backgroundMuted, paddingHorizontal: Spacing.lg, paddingVertical: 8,
+    borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.border,
+  },
+  avatarActionText: { fontSize: FontSize.sm, color: Colors.textSecondary },
+  // Emoji picker
+  emojiBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  emojiSheet: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: Colors.backgroundCard, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingBottom: 40,
+  },
+  emojiSheetHandle: { width: 44, height: 5, backgroundColor: Colors.border, borderRadius: 3, alignSelf: 'center', marginTop: Spacing.md },
+  emojiSheetTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary, textAlign: 'center', paddingVertical: Spacing.lg },
+  emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.md, justifyContent: 'center' },
+  emojiItem: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.backgroundMuted },
+  emojiItemSelected: { backgroundColor: Colors.primaryPale, borderWidth: 2, borderColor: Colors.primary },
 });

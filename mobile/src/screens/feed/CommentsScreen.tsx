@@ -93,7 +93,8 @@ export default function CommentsScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'android' ? 0 : 0}
     >
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         {/* Handle */}
@@ -113,6 +114,8 @@ export default function CommentsScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
           renderItem={({ item }) => {
             const isMine = item.authorId === myId;

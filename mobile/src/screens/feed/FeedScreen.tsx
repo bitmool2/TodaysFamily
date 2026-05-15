@@ -26,6 +26,19 @@ const GROUP_TABS: { type: GroupType; label: string; emoji: string }[] = [
   { type: 'PATERNAL', label: '시댁', emoji: '👴'  },
 ];
 
+// 그룹별 댓글·반응 통계 (실제에선 API)
+const GROUP_STATS: Record<GroupType, { comments: number; reactions: number }> = {
+  ALL:      { comments: 82, reactions: 208 },
+  MATERNAL: { comments: 43, reactions: 116 },
+  PATERNAL: { comments: 25, reactions: 77  },
+};
+
+const GROUP_CONFIG: Record<GroupType, { label: string; color: string; bg: string }> = {
+  ALL:      { label: '전체', color: Colors.primary, bg: Colors.primaryPale },
+  MATERNAL: { label: '친정', color: '#C4693A',      bg: '#FBE8DC'          },
+  PATERNAL: { label: '시댁', color: '#3A6CB5',      bg: '#DCE8FB'          },
+};
+
 const MOCK_POSTS: Post[] = [
   {
     id: '1', familyId: '1', groupId: '1', groupType: 'ALL',
@@ -39,7 +52,7 @@ const MOCK_POSTS: Post[] = [
     id: '2', familyId: '1', groupId: '2', groupType: 'MATERNAL',
     author: { id: '1', email: '', name: '엄마', provider: 'EMAIL', createdAt: '' },
     imageUrl: 'https://picsum.photos/800/800?random=52',
-    caption: '민준이가 처음으로 수영을 한 날이에요! 무서워하면서도 용감하게 도전했어요 🏊 오늘 많이 컸네요 💪',
+    caption: '민준이가 처음으로 수영을 한 날이에요! 무서워하면서도 용감하게 도전했어요 🏊',
     source: 'CAMERA', reactions: [], comments: [], reactionCount: 18, commentCount: 5,
     createdAt: '2026-05-13T15:30:00Z',
   },
@@ -67,6 +80,8 @@ export default function FeedScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
 
   const filtered = activeTab === 'ALL' ? MOCK_POSTS : MOCK_POSTS.filter((p) => p.groupType === activeTab);
+  const stats = GROUP_STATS[activeTab];
+  const config = GROUP_CONFIG[activeTab];
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -98,12 +113,7 @@ export default function FeedScreen({ navigation }: Props) {
 
         {/* ─── Group Tabs ─── */}
         <View style={styles.tabsContainer}>
-          <GroupTabBar
-            tabs={GROUP_TABS}
-            active={activeTab}
-            onChange={setActiveTab}
-          />
-          {/* Post count pill */}
+          <GroupTabBar tabs={GROUP_TABS} active={activeTab} onChange={setActiveTab} />
           <View style={styles.countPill}>
             <Text style={styles.countText}>{filtered.length}개</Text>
           </View>
@@ -116,12 +126,7 @@ export default function FeedScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.primary}
-              colors={[Colors.primary]}
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} colors={[Colors.primary]} />
           }
           ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
           renderItem={({ item }) => (
@@ -131,7 +136,7 @@ export default function FeedScreen({ navigation }: Props) {
               onComment={() => navigation.navigate('Comments', { postId: item.id })}
             />
           )}
-          ListHeaderComponent={<RealTimeShareBanner />}
+          ListHeaderComponent={<GroupStatsBanner stats={stats} config={config} />}
           ListEmptyComponent={<EmptyFeed />}
           ListFooterComponent={<View style={{ height: 20 }} />}
         />
@@ -140,15 +145,31 @@ export default function FeedScreen({ navigation }: Props) {
   );
 }
 
-function RealTimeShareBanner() {
+function GroupStatsBanner({
+  stats,
+  config,
+}: {
+  stats: { comments: number; reactions: number };
+  config: { label: string; color: string; bg: string };
+}) {
   return (
-    <TouchableOpacity style={styles.shareBanner} activeOpacity={0.85}>
-      <View style={styles.bannerLeft}>
-        <View style={styles.bannerDot} />
-        <Text style={styles.bannerText}>기록은 쉽게, 추억은 특별하게</Text>
+    <View style={[styles.statsBanner, { backgroundColor: config.bg }]}>
+      <View style={styles.statsItem}>
+        <Text style={[styles.statsValue, { color: config.color }]}>{stats.comments}</Text>
+        <Text style={[styles.statsLabel, { color: config.color }]}>댓글</Text>
       </View>
-      <Text style={styles.bannerEmoji}>❤️</Text>
-    </TouchableOpacity>
+      <View style={[styles.statsDivider, { backgroundColor: config.color + '33' }]} />
+      <View style={styles.statsItem}>
+        <Text style={[styles.statsValue, { color: config.color }]}>{stats.reactions}</Text>
+        <Text style={[styles.statsLabel, { color: config.color }]}>반응</Text>
+      </View>
+      <View style={[styles.statsDivider, { backgroundColor: config.color + '33' }]} />
+      <View style={[styles.statsItem, { flex: 2 }]}>
+        <Text style={[styles.statsDesc, { color: config.color }]}>
+          {config.label} 멤버들의 활동
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -166,83 +187,31 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   safeArea: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.sm,
   },
-  headerTitle: {
-    fontSize: FontSize.xxl,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-  },
+  headerTitle: { fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: Colors.textPrimary },
   headerActions: { flexDirection: 'row', gap: Spacing.sm },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.backgroundMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtn: {
-    backgroundColor: Colors.primary,
-  },
+  iconBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: Colors.backgroundMuted, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { backgroundColor: Colors.primary },
   tabsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.xl, paddingBottom: Spacing.sm,
   },
-  countPill: {
-    backgroundColor: Colors.backgroundMuted,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-  },
-  countText: {
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    fontWeight: FontWeight.semibold,
-  },
+  countPill: { backgroundColor: Colors.backgroundMuted, paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: Radius.full },
+  countText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: FontWeight.semibold },
   list: { paddingHorizontal: Spacing.xl, paddingBottom: 100 },
-  shareBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.primaryPale,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+  statsBanner: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: Radius.xl,
+    paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, marginBottom: Spacing.lg,
   },
-  bannerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  bannerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-  },
-  bannerText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    color: Colors.primary,
-  },
-  bannerEmoji: { fontSize: 20 },
+  statsItem: { flex: 1, alignItems: 'center', gap: 2 },
+  statsValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  statsLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
+  statsDesc: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, textAlign: 'center', lineHeight: 16 },
+  statsDivider: { width: 1, height: 28, marginHorizontal: Spacing.sm },
   empty: { alignItems: 'center', paddingTop: 80, gap: Spacing.md },
   emptyEmoji: { fontSize: 52 },
-  emptyTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-  },
-  emptyDesc: {
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: Spacing.xxxl,
-  },
+  emptyTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary },
+  emptyDesc: { fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, paddingHorizontal: Spacing.xxxl },
 });

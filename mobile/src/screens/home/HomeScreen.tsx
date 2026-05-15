@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -17,17 +17,19 @@ import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { TabScreenProps } from '@/types/navigation';
 
 const { width: W } = Dimensions.get('window');
-
 type Props = TabScreenProps<'HomeTab'>;
 
-// 업로드 시간 기준 최근 5장만 노출
+// 업로드 시간 기준 최근 5장
 const RECENT_UPLOADS = [
-  { id: '1', uri: 'https://picsum.photos/200/200?random=31', date: '오늘', group: '전체' },
-  { id: '2', uri: 'https://picsum.photos/200/200?random=32', date: '어제', group: '친정' },
-  { id: '3', uri: 'https://picsum.photos/200/200?random=33', date: '어제', group: '시댁' },
-  { id: '4', uri: 'https://picsum.photos/200/200?random=34', date: '3일 전', group: '전체' },
-  { id: '5', uri: 'https://picsum.photos/200/200?random=35', date: '4일 전', group: '친정' },
-].slice(0, 5);
+  { id: '1', uri: 'https://picsum.photos/200/200?random=31', date: '오늘',   group: '전체', reactions: 12 },
+  { id: '2', uri: 'https://picsum.photos/200/200?random=32', date: '어제',   group: '친정', reactions: 8  },
+  { id: '3', uri: 'https://picsum.photos/200/200?random=33', date: '어제',   group: '시댁', reactions: 15 },
+  { id: '4', uri: 'https://picsum.photos/200/200?random=34', date: '3일 전', group: '전체', reactions: 5  },
+  { id: '5', uri: 'https://picsum.photos/200/200?random=35', date: '4일 전', group: '친정', reactions: 9  },
+];
+
+// 최근 5건 업로드의 반응 합계
+const RECENT_REACTION_TOTAL = RECENT_UPLOADS.reduce((sum, u) => sum + u.reactions, 0);
 
 const AI_MEMORIES = [
   {
@@ -63,12 +65,13 @@ export default function HomeScreen({ navigation }: Props) {
   const newPhotoActive = autoUploadEnabled && recentAutoUpload;
 
   const today = new Date();
-  const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${['일','월','화','수','목','금','토'][today.getDay()]})`;
+  const dateStr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${['일', '월', '화', '수', '목', '금', '토'][today.getDay()]})`;
 
   const handleNewPhotoPress = () => {
-    if (newPhotoActive) return; // 활성화 상태면 그냥 표시용
+    if (newPhotoActive) return;
     navigation.navigate('SettingsTab' as any);
   };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -88,11 +91,11 @@ export default function HomeScreen({ navigation }: Props) {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-          {/* ─── 오늘의 소식 (stat cards) ─── */}
+          {/* ─── 오늘의 소식 ─── */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>오늘의 소식</Text>
             <View style={styles.statGrid}>
-              {/* 새 사진: 자동업로드 + 최근사진자동업로드 둘 다 ON일 때만 활성화 */}
+              {/* 새 사진: 자동업로드 + 최근사진자동업로드 ON일 때만 활성 */}
               <TouchableOpacity
                 style={[styles.statCard, { backgroundColor: newPhotoActive ? Colors.primaryPale : Colors.backgroundMuted }]}
                 onPress={handleNewPhotoPress}
@@ -107,12 +110,23 @@ export default function HomeScreen({ navigation }: Props) {
                 ) : (
                   <>
                     <Text style={[styles.statValue, { color: Colors.textMuted, fontSize: FontSize.xs }]}>꺼짐</Text>
-                    <Text style={[styles.statLabel, { color: Colors.textMuted, textAlign: 'center' }]}>최근사진{'\n'}업로드 설정하러 가기</Text>
+                    <Text style={[styles.statLabel, { color: Colors.textMuted, textAlign: 'center' }]}>
+                      최근사진{'\n'}업로드 설정
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
-              <StatCard emoji="📋" label="키즈노트" value="1건"  bg="#FBE8DC" accent="#C4693A" />
-              <StatCard emoji="❤️"  label="가족 반응" value="3개"  bg="#FDE8E8" accent="#D94F3D" />
+
+              <StatCard emoji="📋" label="키즈노트" value="1건" bg="#FBE8DC" accent="#C4693A" />
+
+              {/* 가족 반응: 최근 업로드 5건 기준 */}
+              <StatCard
+                emoji="❤️"
+                label={`최근업로드\n가족 반응`}
+                value={`${RECENT_REACTION_TOTAL}개`}
+                bg="#FDE8E8"
+                accent="#D94F3D"
+              />
             </View>
           </View>
 
@@ -128,10 +142,7 @@ export default function HomeScreen({ navigation }: Props) {
                   <Text style={styles.kdSub}>지금 가족에게 공유할까요?</Text>
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.kdShareBtn}
-                onPress={() => navigation.navigate('UploadModal')}
-              >
+              <TouchableOpacity style={styles.kdShareBtn} onPress={() => navigation.navigate('UploadModal')}>
                 <Text style={styles.kdShareBtnText}>공유하기</Text>
               </TouchableOpacity>
             </TouchableOpacity>
@@ -172,11 +183,7 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={styles.aiBadgeText}>✨ AI</Text>
               </View>
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.memoryScroll}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.memoryScroll}>
               {AI_MEMORIES.map((mem) => (
                 <TouchableOpacity key={mem.id} style={[styles.memoryCard, { backgroundColor: mem.color }]} activeOpacity={0.9}>
                   <View style={styles.memoryTop}>
@@ -222,11 +229,7 @@ export default function HomeScreen({ navigation }: Props) {
         </ScrollView>
 
         {/* ─── FAB ─── */}
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate('UploadModal')}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('UploadModal')} activeOpacity={0.85}>
           <Ionicons name="add" size={30} color="#fff" />
         </TouchableOpacity>
       </SafeAreaView>
@@ -241,7 +244,7 @@ function StatCard({ emoji, label, value, bg, accent }: {
     <View style={[styles.statCard, { backgroundColor: bg }]}>
       <Text style={styles.statEmoji}>{emoji}</Text>
       <Text style={[styles.statValue, { color: accent }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statLabel, { textAlign: 'center' }]}>{label}</Text>
     </View>
   );
 }
@@ -250,181 +253,77 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   safeArea: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.lg,
   },
-  headerDate: {
-    fontSize: FontSize.xs,
-    color: Colors.textMuted,
-    marginBottom: 2,
-  },
-  greeting: {
-    fontSize: FontSize.xl,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-  },
+  headerDate: { fontSize: FontSize.xs, color: Colors.textMuted, marginBottom: 2 },
+  greeting: { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.textPrimary },
   notifBtn: { position: 'relative', padding: 6 },
   notifBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.background,
+    position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: Colors.error, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: Colors.background,
   },
   notifBadgeText: { color: '#fff', fontSize: 9, fontWeight: FontWeight.bold },
   scroll: { paddingBottom: 110 },
   section: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.xxl },
   sectionNoH: { marginBottom: Spacing.xxl },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.xl,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: Spacing.md, paddingHorizontal: Spacing.xl,
   },
-  sectionTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.md,
-  },
+  sectionTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary, marginBottom: Spacing.md },
   seeAll: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: FontWeight.semibold },
-  // Stat cards
   statGrid: { flexDirection: 'row', gap: Spacing.md },
-  statCard: {
-    flex: 1,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    gap: 5,
-  },
-  statEmoji: { fontSize: 26 },
-  statValue: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  statLabel: { fontSize: FontSize.xs, color: Colors.textSecondary },
-  // KidsNote detect
+  statCard: { flex: 1, borderRadius: Radius.xl, padding: Spacing.lg, alignItems: 'center', gap: 4 },
+  statEmoji: { fontSize: 24 },
+  statValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  statLabel: { fontSize: FontSize.xs, color: Colors.textSecondary, lineHeight: 15 },
   kidsnoteDetect: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.primaryPale,
-    borderRadius: Radius.xl,
-    padding: Spacing.lg,
-    borderWidth: 1.5,
-    borderColor: Colors.primary + '33',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.primaryPale, borderRadius: Radius.xl, padding: Spacing.lg,
+    borderWidth: 1.5, borderColor: Colors.primary + '33',
   },
   kdLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
-  kdIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.backgroundCard,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  kdIconBg: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.backgroundCard, alignItems: 'center', justifyContent: 'center' },
   kdIcon: { fontSize: 22 },
   kdTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: Colors.primary },
   kdSub: { fontSize: FontSize.xs, color: Colors.primary, opacity: 0.75, marginTop: 2 },
-  kdShareBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-  },
+  kdShareBtn: { backgroundColor: Colors.primary, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.full },
   kdShareBtnText: { color: '#fff', fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  // Recent uploads
   recentList: { paddingHorizontal: Spacing.xl },
   recentCard: { width: 108, gap: 6 },
-  recentImg: {
-    width: 108,
-    height: 108,
-    borderRadius: Radius.lg,
-  },
+  recentImg: { width: 108, height: 108, borderRadius: Radius.lg },
   recentOverlay: {
-    position: 'absolute',
-    top: 7,
-    left: 7,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: Radius.full,
+    position: 'absolute', top: 7, left: 7, backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: 7, paddingVertical: 2, borderRadius: Radius.full,
   },
   recentGroup: { color: '#fff', fontSize: 10, fontWeight: FontWeight.bold },
   recentDate: { fontSize: FontSize.xs, color: Colors.textMuted, textAlign: 'center' },
-  // AI memories
-  aiBadge: {
-    backgroundColor: Colors.accentLight,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-  },
+  aiBadge: { backgroundColor: Colors.accentLight, paddingHorizontal: Spacing.md, paddingVertical: 3, borderRadius: Radius.full },
   aiBadgeText: { fontSize: FontSize.xs, color: Colors.accent, fontWeight: FontWeight.bold },
   memoryScroll: { paddingHorizontal: Spacing.xl, gap: Spacing.md },
-  memoryCard: {
-    width: W * 0.72,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-    ...Shadow.sm,
-  },
+  memoryCard: { width: W * 0.72, borderRadius: Radius.xl, overflow: 'hidden', ...Shadow.sm },
   memoryTop: { padding: Spacing.md },
-  memoryLabel: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: Radius.full,
-  },
+  memoryLabel: { alignSelf: 'flex-start', paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
   memoryLabelText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   memoryImg: { width: '100%', height: 140 },
   memoryBottom: { padding: Spacing.lg, gap: 4 },
   memoryTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold },
   memoryCaption: { fontSize: FontSize.sm, color: Colors.textSecondary },
   memoryLink: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: 4 },
-  // Alerts
-  alertList: {
-    backgroundColor: Colors.backgroundCard,
-    borderRadius: Radius.xl,
-    overflow: 'hidden',
-    ...Shadow.sm,
-  },
+  alertList: { backgroundColor: Colors.backgroundCard, borderRadius: Radius.xl, overflow: 'hidden', ...Shadow.sm },
   alertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md, padding: Spacing.lg,
+    borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
   },
-  alertAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primaryPale,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  alertAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primaryPale, alignItems: 'center', justifyContent: 'center' },
   alertEmoji: { fontSize: 20 },
   alertContent: { flex: 1 },
   alertText: { fontSize: FontSize.sm, color: Colors.textPrimary, lineHeight: 19 },
   alertTime: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 3 },
   fab: {
-    position: 'absolute',
-    right: Spacing.xl,
-    bottom: 88,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadow.lg,
+    position: 'absolute', right: Spacing.xl, bottom: 88, width: 58, height: 58,
+    borderRadius: 29, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadow.lg,
   },
 });
