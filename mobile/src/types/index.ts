@@ -14,6 +14,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  bio?: string;
   profileImage?: string;
   provider: AuthProvider;
   createdAt: string;

@@ -22,7 +22,7 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [name, setName] = useState(user?.name ?? '');
   const [email] = useState(user?.email ?? '');
   const [phone, setPhone] = useState('');
-  const [bio, setBio] = useState('');
+  const [bio, setBio] = useState(user?.bio ?? '');
   const [profileEmoji, setProfileEmoji] = useState('👩');
   const [profileImageUri, setProfileImageUri] = useState<string | null>(null);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
@@ -53,7 +53,7 @@ export default function EditProfileScreen({ navigation }: Props) {
     try {
       await new Promise((r) => setTimeout(r, 700));
       if (user) {
-        setAuth({ ...user, name: name.trim() }, 'mock-token');
+        setAuth({ ...user, name: name.trim(), bio: bio.trim() || undefined }, 'mock-token');
       }
       Alert.alert('저장 완료', '내 정보가 업데이트되었어요.', [
         { text: '확인', onPress: () => navigation.goBack() },

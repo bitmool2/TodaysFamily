@@ -29,16 +29,17 @@ const GROUP_TABS: { type: GroupType; label: string; emoji: string }[] = [
 interface Member {
   id: string; name: string; role: string; emoji: string;
   group: GroupType; isOwner?: boolean;
+  bio?: string;
   posts: number; comments: number; reactions: number;
 }
 
 const MEMBERS: Member[] = [
-  { id: '1', name: '엄마',     role: '엄마',     emoji: '👩', group: 'ALL',      isOwner: true, posts: 24, comments: 18, reactions: 42 },
-  { id: '2', name: '아빠',     role: '아빠',     emoji: '👨', group: 'ALL',      posts: 6,  comments: 11, reactions: 31 },
-  { id: '3', name: '외할머니', role: '외할머니', emoji: '👵', group: 'MATERNAL', posts: 1,  comments: 28, reactions: 56 },
-  { id: '4', name: '외할아버지',role: '외할아버지',emoji: '👴',group: 'MATERNAL', posts: 0,  comments: 7,  reactions: 22 },
-  { id: '5', name: '할머니',   role: '시어머니', emoji: '👵', group: 'PATERNAL', posts: 0,  comments: 14, reactions: 38 },
-  { id: '6', name: '할아버지', role: '시아버지', emoji: '👴', group: 'PATERNAL', posts: 0,  comments: 4,  reactions: 19 },
+  { id: '1', name: '엄마',     role: '엄마',     emoji: '👩', group: 'ALL',      isOwner: true, bio: '민준이의 든든한 엄마 🌸', posts: 24, comments: 18, reactions: 42 },
+  { id: '2', name: '아빠',     role: '아빠',     emoji: '👨', group: 'ALL',      bio: '주말엔 민준이랑 공원 산책 🚴', posts: 6,  comments: 11, reactions: 31 },
+  { id: '3', name: '외할머니', role: '외할머니', emoji: '👵', group: 'MATERNAL', bio: '손주 사진 기다리는 중 ❤️',       posts: 1,  comments: 28, reactions: 56 },
+  { id: '4', name: '외할아버지',role: '외할아버지',emoji: '👴',group: 'MATERNAL',                                        posts: 0,  comments: 7,  reactions: 22 },
+  { id: '5', name: '할머니',   role: '시어머니', emoji: '👵', group: 'PATERNAL', bio: '민준이 보고 싶어요 😊',          posts: 0,  comments: 14, reactions: 38 },
+  { id: '6', name: '할아버지', role: '시아버지', emoji: '👴', group: 'PATERNAL',                                        posts: 0,  comments: 4,  reactions: 19 },
 ];
 
 // 멤버별 최근 활동 목업 데이터
@@ -185,6 +186,9 @@ export default function FamilyScreen({ navigation }: Props) {
               <View style={styles.sheetMemberInfo}>
                 <Text style={styles.sheetName}>{selectedMember.name}</Text>
                 <Text style={styles.sheetRole}>{selectedMember.role}</Text>
+                {selectedMember.bio ? (
+                  <Text style={styles.sheetBio}>{selectedMember.bio}</Text>
+                ) : null}
               </View>
               <TouchableOpacity style={styles.sheetClose} onPress={() => setSelectedMember(null)}>
                 <Ionicons name="close" size={20} color={Colors.textSecondary} />
@@ -313,6 +317,7 @@ const styles = StyleSheet.create({
   sheetMemberInfo: { flex: 1 },
   sheetName: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary },
   sheetRole: { fontSize: FontSize.sm, color: Colors.textSecondary, marginTop: 2 },
+  sheetBio: { fontSize: FontSize.sm, color: Colors.textMuted, marginTop: 4, fontStyle: 'italic' },
   sheetClose: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.backgroundMuted,
     alignItems: 'center', justifyContent: 'center',
