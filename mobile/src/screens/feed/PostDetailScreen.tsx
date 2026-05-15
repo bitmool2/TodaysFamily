@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  Share,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +20,21 @@ import SourceBadge from '@/components/common/SourceBadge';
 const { width: W } = Dimensions.get('window');
 type Props = RootStackScreenProps<'PostDetail'>;
 
+const BASE_URL = 'https://todaysfamily.app';
+
+async function createShortLink(postId: string): Promise<string> {
+  const longUrl = `${BASE_URL}/post/${postId}`;
+  try {
+    const res = await fetch(
+      `https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`,
+    );
+    if (!res.ok) throw new Error();
+    return await res.text();
+  } catch {
+    return longUrl;
+  }
+}
+
 const MOCK_REACTIONS = [
   { emoji: '❤️', count: 12, active: false },
   { emoji: '😊', count: 5,  active: true  },
@@ -26,6 +44,7 @@ const MOCK_REACTIONS = [
 export default function PostDetailScreen({ route, navigation }: Props) {
   const { postId } = route.params;
   const [reactions, setReactions] = useState(MOCK_REACTIONS);
+  const [sharing, setSharing] = useState(false);
 
   const toggleReaction = (idx: number) => {
     setReactions((prev) =>
@@ -33,6 +52,24 @@ export default function PostDetailScreen({ route, navigation }: Props) {
         i === idx ? { ...r, active: !r.active, count: r.active ? r.count - 1 : r.count + 1 } : r
       )
     );
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const shortUrl = await createShortLink(postId);
+      await Share.share({
+        title: '오늘의가족',
+        message: `📸 가족 사진을 공유했어요!\n\n${shortUrl}`,
+        url: shortUrl,
+      });
+    } catch (err: any) {
+      if (err?.message !== 'User did not share') {
+        Alert.alert('공유 실패', '링크 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -157,8 +194,11 @@ export default function PostDetailScreen({ route, navigation }: Props) {
             <Text style={styles.commentBtnText}>댓글 달기</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.shareBtn}>
-            <Ionicons name="share-social-outline" size={20} color={Colors.textSecondary} />
+          <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
+            {sharing
+              ? <ActivityIndicator size="small" color={Colors.textSecondary} />
+              : <Ionicons name="share-social-outline" size={20} color={Colors.textSecondary} />
+            }
           </TouchableOpacity>
         </View>
       </SafeAreaView>

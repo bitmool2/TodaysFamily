@@ -6,6 +6,9 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Share,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
@@ -24,6 +27,20 @@ interface Props {
 }
 
 const REACTION_EMOJIS = ['❤️', '😊', '👏'];
+const BASE_URL = 'https://todaysfamily.app'; // 실제 배포 도메인으로 변경
+
+async function createShortLink(postId: string): Promise<string> {
+  const longUrl = `${BASE_URL}/post/${postId}`;
+  try {
+    const res = await fetch(
+      `https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`,
+    );
+    if (!res.ok) throw new Error();
+    return await res.text();
+  } catch {
+    return longUrl; // 실패 시 원본 URL 반환
+  }
+}
 
 function formatKoreanDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -31,9 +48,10 @@ function formatKoreanDate(dateStr: string): string {
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 }
 
-export default function PostCard({ post, onPress, onComment, onReact, onShare }: Props) {
+export default function PostCard({ post, onPress, onComment, onReact }: Props) {
   const [liked, setLiked] = useState(false);
   const [localCount, setLocalCount] = useState(post.reactionCount);
+  const [sharing, setSharing] = useState(false);
 
   const handleReact = () => {
     setLiked((prev) => {
@@ -41,6 +59,24 @@ export default function PostCard({ post, onPress, onComment, onReact, onShare }:
       return !prev;
     });
     onReact?.();
+  };
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const shortUrl = await createShortLink(post.id);
+      await Share.share({
+        title: '오늘의가족',
+        message: `📸 ${post.author.name}님이 가족 사진을 공유했어요!\n\n${shortUrl}`,
+        url: shortUrl,
+      });
+    } catch (err: any) {
+      if (err?.message !== 'User did not share') {
+        Alert.alert('공유 실패', '링크 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -105,8 +141,11 @@ export default function PostCard({ post, onPress, onComment, onReact, onShare }:
           <Text style={styles.actionLabel}>댓글</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={onShare}>
-          <Ionicons name="share-social-outline" size={20} color={Colors.textSecondary} />
+        <TouchableOpacity style={styles.actionBtn} onPress={handleShare} disabled={sharing}>
+          {sharing
+            ? <ActivityIndicator size="small" color={Colors.textSecondary} />
+            : <Ionicons name="share-social-outline" size={20} color={Colors.textSecondary} />
+          }
           <Text style={styles.actionLabel}>공유</Text>
         </TouchableOpacity>
       </View>

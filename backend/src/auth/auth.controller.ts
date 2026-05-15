@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Get, Body, UseGuards, Patch,
+  Controller, Post, Get, Body, UseGuards, Patch, Query,
   HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -14,6 +14,13 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Get('check-email')
+  @ApiOperation({ summary: '이메일 중복 확인' })
+  checkEmail(@Query('email') email: string) {
+    return this.authService.checkEmail(email);
+  }
 
   @Public()
   @Post('register')

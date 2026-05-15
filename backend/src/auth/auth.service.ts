@@ -24,6 +24,13 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
+  // ── Check email duplicate ─────────────────────────────────────────────────
+
+  async checkEmail(email: string) {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    return { available: !existing };
+  }
+
   // ── Register ─────────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto) {

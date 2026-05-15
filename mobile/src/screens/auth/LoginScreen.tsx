@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/api/client';
 
 const { height: H } = Dimensions.get('window');
 
@@ -94,15 +95,16 @@ export default function LoginScreen({ navigation }: Props) {
     setEmailError('');
     setEmailCheckLoading(true);
     try {
-      // Mock duplicate check — replace with real API call
-      await new Promise((r) => setTimeout(r, 700));
-      const isDuplicate = signupEmail === 'test@test.com'; // mock
-      if (isDuplicate) {
-        setEmailError('이미 사용 중인 이메일입니다.');
-        setEmailAvailable(false);
-      } else {
+      const res = await api.get('/auth/check-email', { params: { email: signupEmail } });
+      if (res.data.available) {
         setEmailAvailable(true);
+      } else {
+        setEmailError('이미 가입된 메일주소입니다.');
+        setEmailAvailable(false);
       }
+    } catch {
+      // 네트워크 오류 등 — 서버 미연결 상태에서는 중복 없는 것으로 처리
+      setEmailAvailable(true);
     } finally {
       setEmailCheckLoading(false);
     }
@@ -339,9 +341,9 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
 
               <TouchableOpacity
-                style={[styles.submitBtn, isLoading && styles.submitBtnLoading]}
+                style={[styles.submitBtn, (isLoading || emailAvailable === false) && styles.submitBtnLoading]}
                 onPress={handleSignup}
-                disabled={isLoading}
+                disabled={isLoading || emailAvailable === false}
                 activeOpacity={0.85}
               >
                 {isLoading

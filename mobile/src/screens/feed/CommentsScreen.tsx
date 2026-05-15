@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,39 +8,92 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Image,
+  Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
 import { Colors, FontSize, FontWeight, Spacing, Radius } from '@/theme';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = RootStackScreenProps<'Comments'>;
 
-const MOCK_COMMENTS = [
-  { id: '1', emoji: '👵', name: '외할머니', text: '오늘 물감놀이 너무 즐거웠겠다 ❤️ 민준이 사진 보니까 할머니 너무 기뻐요!', time: '10분 전' },
-  { id: '2', emoji: '👴', name: '외할아버지', text: '우리 민준이 잘했어요~ 😊 더 많이 찍어줘요~', time: '8분 전' },
-  { id: '3', emoji: '👨', name: '아빠', text: '오늘도 씩씩하게 잘 다녀왔네! 오늘 저녁에 칭찬해줘야겠다 💪', time: '5분 전' },
+interface Comment {
+  id: string;
+  authorId: string;
+  emoji: string;
+  name: string;
+  text: string;
+  time: string;
+}
+
+const MOCK_COMMENTS: Comment[] = [
+  { id: '1', authorId: 'other1', emoji: '👵', name: '외할머니', text: '오늘 물감놀이 너무 즐거웠겠다 ❤️ 민준이 사진 보니까 할머니 너무 기뻐요!', time: '10분 전' },
+  { id: '2', authorId: 'other2', emoji: '👴', name: '외할아버지', text: '우리 민준이 잘했어요~ 😊 더 많이 찍어줘요~', time: '8분 전' },
+  { id: '3', authorId: 'other3', emoji: '👨', name: '아빠', text: '오늘도 씩씩하게 잘 다녀왔네! 오늘 저녁에 칭찬해줘야겠다 💪', time: '5분 전' },
 ];
 
 export default function CommentsScreen({ navigation }: Props) {
-  const [text, setText] = useState('');
-  const [comments, setComments] = useState(MOCK_COMMENTS);
+  const user = useAuthStore((s) => s.user);
+  const myId = user?.id ?? 'me';
 
+  const [text, setText] = useState('');
+  const [comments, setComments] = useState<Comment[]>(MOCK_COMMENTS);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  // ── 댓글 등록 ──────────────────────────────────────────────────────────────
   const sendComment = () => {
     if (!text.trim()) return;
     setComments((prev) => [
       ...prev,
-      { id: String(Date.now()), emoji: '👩', name: '나', text: text.trim(), time: '방금' },
+      { id: String(Date.now()), authorId: myId, emoji: '👩', name: user?.name ?? '나', text: text.trim(), time: '방금' },
     ]);
     setText('');
   };
+
+  // ── 수정 시작 ──────────────────────────────────────────────────────────────
+  const startEdit = (comment: Comment) => {
+    setEditingId(comment.id);
+    setEditText(comment.text);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  // ── 수정 완료 ──────────────────────────────────────────────────────────────
+  const submitEdit = () => {
+    if (!editText.trim()) return;
+    setComments((prev) =>
+      prev.map((c) => (c.id === editingId ? { ...c, text: editText.trim(), time: '방금 수정됨' } : c))
+    );
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
+
+  // ── 삭제 ──────────────────────────────────────────────────────────────────
+  const deleteComment = (id: string) => {
+    Alert.alert('댓글 삭제', '이 댓글을 삭제할까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => setComments((prev) => prev.filter((c) => c.id !== id)),
+      },
+    ]);
+  };
+
+  const isEditing = editingId !== null;
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         {/* Handle */}
@@ -61,30 +114,76 @@ export default function CommentsScreen({ navigation }: Props) {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={() => <View style={{ height: Spacing.lg }} />}
-          renderItem={({ item }) => (
-            <View style={styles.commentRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarEmoji}>{item.emoji}</Text>
-              </View>
-              <View style={styles.bubble}>
-                <View style={styles.bubbleTop}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.time}>{item.time}</Text>
-                </View>
-                <Text style={styles.commentText}>{item.text}</Text>
+          renderItem={({ item }) => {
+            const isMine = item.authorId === myId;
+            const isBeingEdited = editingId === item.id;
 
-                <View style={styles.commentActions}>
-                  <TouchableOpacity style={styles.likeBtn}>
-                    <Ionicons name="heart-outline" size={14} color={Colors.textMuted} />
-                    <Text style={styles.likeBtnText}>좋아요</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.likeBtn}>
-                    <Text style={styles.likeBtnText}>답글</Text>
-                  </TouchableOpacity>
+            return (
+              <View style={styles.commentRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarEmoji}>{item.emoji}</Text>
+                </View>
+
+                <View style={[styles.bubble, isMine && styles.bubbleMine]}>
+                  <View style={styles.bubbleTop}>
+                    <View style={styles.bubbleTopLeft}>
+                      <Text style={styles.name}>{item.name}</Text>
+                      {isMine && (
+                        <View style={styles.meBadge}>
+                          <Text style={styles.meBadgeText}>나</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.bubbleTopRight}>
+                      <Text style={styles.time}>{item.time}</Text>
+                      {/* 본인 댓글에만 수정/삭제 버튼 노출 */}
+                      {isMine && !isBeingEdited && (
+                        <View style={styles.commentActions}>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => startEdit(item)}>
+                            <Ionicons name="pencil-outline" size={13} color={Colors.primary} />
+                            <Text style={styles.actionBtnText}>수정</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.actionBtn} onPress={() => deleteComment(item.id)}>
+                            <Ionicons name="trash-outline" size={13} color={Colors.error} />
+                            <Text style={[styles.actionBtnText, { color: Colors.error }]}>삭제</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* 수정 중인 댓글은 인라인 에디터로 표시 */}
+                  {isBeingEdited ? (
+                    <View style={styles.editBox}>
+                      <TextInput
+                        ref={inputRef}
+                        style={styles.editInput}
+                        value={editText}
+                        onChangeText={setEditText}
+                        multiline
+                        maxLength={200}
+                        autoFocus
+                      />
+                      <View style={styles.editActions}>
+                        <TouchableOpacity style={styles.editCancelBtn} onPress={cancelEdit}>
+                          <Text style={styles.editCancelText}>취소</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.editSubmitBtn, !editText.trim() && { opacity: 0.4 }]}
+                          onPress={submitEdit}
+                          disabled={!editText.trim()}
+                        >
+                          <Text style={styles.editSubmitText}>저장</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={styles.commentText}>{item.text}</Text>
+                  )}
                 </View>
               </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💬</Text>
@@ -107,14 +206,15 @@ export default function CommentsScreen({ navigation }: Props) {
               placeholderTextColor={Colors.textMuted}
               multiline
               maxLength={200}
+              editable={!isEditing}
             />
           </View>
           <TouchableOpacity
-            style={[styles.sendBtn, text.trim() && styles.sendBtnActive]}
+            style={[styles.sendBtn, text.trim() && !isEditing && styles.sendBtnActive]}
             onPress={sendComment}
-            disabled={!text.trim()}
+            disabled={!text.trim() || isEditing}
           >
-            <Ionicons name="send" size={18} color={text.trim() ? '#fff' : Colors.textMuted} />
+            <Ionicons name="send" size={18} color={text.trim() && !isEditing ? '#fff' : Colors.textMuted} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -126,108 +226,92 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.backgroundCard },
   safeArea: { flex: 1 },
   handle: {
-    width: 44,
-    height: 5,
-    backgroundColor: Colors.border,
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    width: 44, height: 5, backgroundColor: Colors.border, borderRadius: 3,
+    alignSelf: 'center', marginTop: Spacing.md, marginBottom: Spacing.sm,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
   },
   title: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.textPrimary },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 32, height: 32, borderRadius: 16,
     backgroundColor: Colors.backgroundMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   list: { padding: Spacing.xl, paddingBottom: 20 },
   commentRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: Colors.primaryPale,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   avatarEmoji: { fontSize: 20 },
   bubble: {
-    flex: 1,
-    backgroundColor: Colors.backgroundMuted,
-    borderRadius: Radius.xl,
-    borderTopLeftRadius: 4,
-    padding: Spacing.md,
-    gap: Spacing.xs,
+    flex: 1, backgroundColor: Colors.backgroundMuted,
+    borderRadius: Radius.xl, borderTopLeftRadius: 4,
+    padding: Spacing.md, gap: Spacing.xs,
   },
-  bubbleTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bubbleMine: {
+    backgroundColor: Colors.primaryPale,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: 4,
+  },
+  bubbleTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  bubbleTopLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  bubbleTopRight: { alignItems: 'flex-end', gap: 4 },
   name: { fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: Colors.textPrimary },
-  time: { fontSize: FontSize.xs, color: Colors.textMuted },
-  commentText: { fontSize: FontSize.sm, color: Colors.textPrimary, lineHeight: 20 },
-  commentActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
-  likeBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  likeBtnText: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: FontWeight.medium },
-  empty: {
-    alignItems: 'center',
-    paddingTop: 60,
-    gap: Spacing.md,
+  meBadge: {
+    backgroundColor: Colors.primary, borderRadius: Radius.full,
+    paddingHorizontal: 6, paddingVertical: 1,
   },
+  meBadgeText: { fontSize: 9, color: '#fff', fontWeight: FontWeight.bold },
+  time: { fontSize: FontSize.xs, color: Colors.textMuted },
+  commentActions: { flexDirection: 'row', gap: Spacing.sm },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  actionBtnText: { fontSize: FontSize.xs, color: Colors.primary, fontWeight: FontWeight.medium },
+  commentText: { fontSize: FontSize.sm, color: Colors.textPrimary, lineHeight: 20 },
+  editBox: { gap: Spacing.sm, marginTop: 4 },
+  editInput: {
+    fontSize: FontSize.sm, color: Colors.textPrimary, lineHeight: 20,
+    backgroundColor: Colors.backgroundCard, borderRadius: Radius.md,
+    borderWidth: 1.5, borderColor: Colors.primary,
+    padding: Spacing.sm, minHeight: 52,
+  },
+  editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm },
+  editCancelBtn: {
+    paddingHorizontal: Spacing.lg, paddingVertical: 6,
+    borderRadius: Radius.full, backgroundColor: Colors.backgroundMuted,
+  },
+  editCancelText: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: FontWeight.semibold },
+  editSubmitBtn: {
+    paddingHorizontal: Spacing.lg, paddingVertical: 6,
+    borderRadius: Radius.full, backgroundColor: Colors.primary,
+  },
+  editSubmitText: { fontSize: FontSize.xs, color: '#fff', fontWeight: FontWeight.bold },
+  empty: { alignItems: 'center', paddingTop: 60, gap: Spacing.md },
   emptyEmoji: { fontSize: 40 },
   emptyText: { fontSize: FontSize.base, color: Colors.textSecondary },
   inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm,
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, paddingBottom: 24,
+    borderTopWidth: 1, borderTopColor: Colors.borderLight,
     backgroundColor: Colors.backgroundCard,
   },
   inputAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primaryPale,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primaryPale,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   inputBubble: {
-    flex: 1,
-    backgroundColor: Colors.backgroundMuted,
-    borderRadius: 20,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    maxHeight: 100,
+    flex: 1, backgroundColor: Colors.backgroundMuted, borderRadius: 20,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, maxHeight: 100,
   },
-  input: {
-    fontSize: FontSize.base,
-    color: Colors.textPrimary,
-    padding: 0,
-    lineHeight: 22,
-  },
+  input: { fontSize: FontSize.base, color: Colors.textPrimary, padding: 0, lineHeight: 22 },
   sendBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: Colors.backgroundMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   sendBtnActive: { backgroundColor: Colors.primary },
 });
