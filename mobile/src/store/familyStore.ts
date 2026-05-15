@@ -1,5 +1,23 @@
 import { create } from 'zustand';
-import api from '@/api/client';
+import axios from 'axios';
+import { Platform } from 'react-native';
+
+const DEV_HOST = Platform.OS === 'android' ? '10.100.0.230' : 'localhost';
+const BASE_URL = __DEV__
+  ? `http://${DEV_HOST}:3031/api/v1`
+  : 'https://your-render-url.onrender.com/api/v1';
+
+function getAxios() {
+  const token = require('@/store/authStore').useAuthStore.getState().token;
+  return axios.create({
+    baseURL: BASE_URL,
+    timeout: 10_000,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
 
 interface FamilyGroup {
   id: string;
@@ -43,7 +61,7 @@ export const useFamilyStore = create<FamilyStore>((set) => ({
   createFamily: async (name) => {
     set({ isLoading: true });
     try {
-      const res = await api.post('/families', { name });
+      const res = await getAxios().post('/families', { name });
       set({ family: res.data });
     } finally {
       set({ isLoading: false });
@@ -53,7 +71,7 @@ export const useFamilyStore = create<FamilyStore>((set) => ({
   fetchFamily: async (familyId) => {
     set({ isLoading: true });
     try {
-      const res = await api.get(`/families/${familyId}`);
+      const res = await getAxios().get(`/families/${familyId}`);
       set({ family: res.data });
     } finally {
       set({ isLoading: false });
