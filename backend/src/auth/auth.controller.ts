@@ -23,6 +23,13 @@ export class AuthController {
   }
 
   @Public()
+  @Get('check-admin')
+  @ApiOperation({ summary: '관리자 이메일 확인 (멤버 가입 시: 계정 존재 + ADMIN 역할 동시 검증)' })
+  checkAdmin(@Query('email') email: string) {
+    return this.authService.checkAdmin(email);
+  }
+
+  @Public()
   @Post('register')
   @ApiOperation({ summary: '이메일 회원가입' })
   register(@Body() dto: RegisterDto) {

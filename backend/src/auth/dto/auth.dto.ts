@@ -2,6 +2,8 @@ import { IsEmail, IsString, MinLength, IsOptional, IsEnum } from 'class-validato
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AuthProvider } from '@prisma/client';
 
+export type UserRoleType = 'ADMIN' | 'MEMBER';
+
 export class LoginDto {
   @ApiProperty({ example: 'mom@todaysfamily.app' })
   @IsEmail()
@@ -27,6 +29,16 @@ export class RegisterDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  @ApiPropertyOptional({ enum: ['ADMIN', 'MEMBER'], default: 'ADMIN', description: '가입 역할' })
+  @IsOptional()
+  @IsEnum(['ADMIN', 'MEMBER'])
+  role?: UserRoleType;
+
+  @ApiPropertyOptional({ example: 'admin@family.app', description: '멤버 가입 시 연결할 관리자 이메일' })
+  @IsOptional()
+  @IsEmail()
+  adminEmail?: string;
 }
 
 export class SocialLoginDto {

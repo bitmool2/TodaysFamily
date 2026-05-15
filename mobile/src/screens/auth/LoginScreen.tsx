@@ -193,7 +193,7 @@ export default function LoginScreen({ navigation }: Props) {
     setAdminEmail(''); setAdminEmailError(''); setAdminEmailVerified(null);
   };
 
-  /** 멤버 가입 시 관리자 이메일 존재 여부 확인 */
+  /** 멤버 가입 시 관리자 이메일 존재 여부 + ADMIN 역할 동시 확인 */
   const handleAdminEmailCheck = async () => {
     if (!EMAIL_REGEX.test(adminEmail)) {
       setAdminEmailError('올바른 이메일 형식이 아닙니다.');
@@ -203,14 +203,17 @@ export default function LoginScreen({ navigation }: Props) {
     setAdminEmailError('');
     setAdminEmailCheckLoading(true);
     try {
-      const res = await api.get('/auth/check-email', { params: { email: adminEmail } });
-      if (res.data.available) {
-        // 가입된 계정이 없음 → 관리자 아님
-        setAdminEmailError('등록된 관리자 계정이 없습니다. 이메일을 확인해주세요.');
+      const res = await api.get('/auth/check-admin', { params: { email: adminEmail } });
+      const { exists, isAdmin, message } = res.data;
+      if (isAdmin) {
+        setAdminEmailVerified(true);
+      } else if (!exists) {
+        setAdminEmailError('등록된 계정이 없습니다. 이메일을 확인해주세요.');
         setAdminEmailVerified(false);
       } else {
-        // 이미 가입된 계정 → 관리자 존재
-        setAdminEmailVerified(true);
+        // 계정은 있지만 ADMIN 역할이 아님
+        setAdminEmailError('해당 계정은 관리자가 아닙니다.');
+        setAdminEmailVerified(false);
       }
     } catch {
       // 서버 미연결 시 목업 처리 (테스트용)
@@ -538,7 +541,7 @@ export default function LoginScreen({ navigation }: Props) {
                     </TouchableOpacity>
                   </View>
                   {adminEmailVerified === true && (
-                    <Text style={styles.successText}>✓ 관리자 계정이 확인되었습니다.</Text>
+                    <Text style={styles.successText}>✓ 관리자 계정이 확인되었습니다. 그룹에 연결됩니다.</Text>
                   )}
                   {!!adminEmailError && <Text style={styles.fieldError}>{adminEmailError}</Text>}
                 </View>

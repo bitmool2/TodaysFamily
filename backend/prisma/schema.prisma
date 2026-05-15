@@ -45,12 +45,18 @@ enum InviteStatus {
   EXPIRED
 }
 
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
   id             String     @id @default(uuid()) @db.VarChar(36)
   email          String     @unique @db.VarChar(255)
   name           String     @db.VarChar(100)
+  role           UserRole   @default(ADMIN)
   profileImage   String?    @db.VarChar(500)
   provider       AuthProvider @default(EMAIL)
   providerId     String?    @db.VarChar(255)

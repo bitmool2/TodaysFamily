@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -31,15 +32,44 @@ export class AuthService {
     return { available: !existing };
   }
 
+  // ── Check admin email (멤버 가입 시: 실제 가입 계정 + ADMIN 역할 확인) ────
+
+  async checkAdmin(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { exists: false, isAdmin: false, message: '등록된 계정이 없습니다.' };
+    }
+    if (user.role !== 'ADMIN') {
+      return { exists: true, isAdmin: false, message: '해당 계정은 관리자가 아닙니다.' };
+    }
+    return { exists: true, isAdmin: true, message: '관리자 계정이 확인되었습니다.' };
+  }
+
   // ── Register ─────────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('이미 사용 중인 이메일입니다.');
 
+    const role = dto.role ?? 'ADMIN';
+
+    // 멤버 가입 시 관리자 이메일 유효성 검증
+    if (role === 'MEMBER') {
+      if (!dto.adminEmail) throw new BadRequestException('관리자 이메일을 입력해주세요.');
+      const admin = await this.prisma.user.findUnique({ where: { email: dto.adminEmail } });
+      if (!admin) throw new NotFoundException('등록된 관리자 계정이 없습니다.');
+      if (admin.role !== 'ADMIN') throw new BadRequestException('해당 계정은 관리자가 아닙니다.');
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
-      data: { email: dto.email, name: dto.name, passwordHash, provider: AuthProvider.EMAIL },
+      data: {
+        email: dto.email,
+        name: dto.name,
+        passwordHash,
+        provider: AuthProvider.EMAIL,
+        role: role as any,
+      },
     });
 
     return this.issueTokens(user);
