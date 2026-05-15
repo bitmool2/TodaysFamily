@@ -8,6 +8,10 @@ services:
       MYSQL_DATABASE:      todaysfamily
       MYSQL_USER:          tfuser
       MYSQL_PASSWORD:      tfpassword
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --skip-character-set-client-handshake
     ports:
       - '3309:3306'
     volumes:

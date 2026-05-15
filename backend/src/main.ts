@@ -14,16 +14,17 @@ async function bootstrap() {
   // ── Security ──────────────────────────────────────────────────────────────
   app.use(helmet());
   app.use(compression());
-  app.enableCors({
-    origin: config.get('ALLOWED_ORIGINS', '*').split(','),
-    credentials: true,
-  });
+  // 개발환경에서는 모든 origin 허용 (Expo Go 실기기 포함)
+  const allowedOrigins = config.get('NODE_ENV') === 'production'
+    ? config.get('ALLOWED_ORIGINS', '*').split(',')
+    : true;
+  app.enableCors({ origin: allowedOrigins, credentials: true });
 
   // ── Global pipes ──────────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
+      forbidNonWhitelisted: false,  // DTO 외 필드는 무시 (에러 내지 않음)
       transform: true,
       transformOptions: { enableImplicitConversion: true },
     }),
