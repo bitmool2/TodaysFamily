@@ -29,6 +29,8 @@ export type RootStackParamList = {
   EditProfile: undefined;
   // Album picker for auto-upload
   AlbumPicker: undefined;
+  // Change password
+  ChangePassword: undefined;
 };
 
 // ─── Bottom Tab ───────────────────────────────────────────────────────────────

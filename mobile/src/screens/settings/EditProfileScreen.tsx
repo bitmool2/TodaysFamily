@@ -13,7 +13,7 @@ import type { RootStackScreenProps } from '@/types/navigation';
 
 type Props = RootStackScreenProps<'EditProfile'>;
 
-const PROFILE_EMOJIS = ['👩', '👨', '👵', '👴', '👧', '👦', '🧑', '👶', '🐶', '🐱', '🌸', '⭐', '🦊', '🐼', '🌻', '🍀'];
+const PROFILE_EMOJIS = ['👩', '👨', '👵', '👴', '👧', '👦', '🧑', '👶', '🐶', '🐱', '🌸', '⭐', '🦊', '🐼', '🐰', '🐻', '🦁', '🐯', '🐸', '🐧', '🌻', '🌹', '🍀', '🌈', '🎀', '💎', '🎸', '⚽', '🎂', '🍎'];
 
 export default function EditProfileScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
@@ -76,7 +76,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>내 정보 수정</Text>
+          <Text style={styles.headerTitle}>내정보</Text>
           <TouchableOpacity
             style={[styles.saveBtn, isSaving && { opacity: 0.6 }]}
             onPress={handleSave}
@@ -125,9 +125,6 @@ export default function EditProfileScreen({ navigation }: Props) {
               placeholder="이름을 입력해주세요"
               error={nameError}
             />
-
-            <Divider />
-
             <FormField
               label="이메일"
               icon="mail-outline"
@@ -137,9 +134,6 @@ export default function EditProfileScreen({ navigation }: Props) {
               editable={false}
               hint="이메일은 변경할 수 없어요"
             />
-
-            <Divider />
-
             <FormField
               label="전화번호"
               icon="call-outline"
@@ -148,9 +142,6 @@ export default function EditProfileScreen({ navigation }: Props) {
               placeholder="010-0000-0000"
               keyboardType="phone-pad"
             />
-
-            <Divider />
-
             <FormField
               label="한 줄 소개"
               icon="chatbubble-ellipses-outline"
@@ -158,10 +149,10 @@ export default function EditProfileScreen({ navigation }: Props) {
               onChangeText={setBio}
               placeholder="가족에게 소개 한 마디 남겨보세요"
               multiline
+              isLast
             />
           </View>
 
-          {/* ─── 계정 정보 ─── */}
           <View style={styles.formCard}>
             <SectionLabel>계정 정보</SectionLabel>
 
@@ -169,13 +160,21 @@ export default function EditProfileScreen({ navigation }: Props) {
             <Divider />
             <InfoRow icon="shield-outline"  label="가입 방법"  value="이메일" />
             <Divider />
-            <InfoRow icon="calendar-outline" label="가입일"    value="2026년 5월" />
+            <InfoRow
+              icon="calendar-outline"
+              label="가입일"
+              value={(() => {
+                const d = user?.createdAt ? new Date(user.createdAt) : new Date();
+                const pad = (n: number) => String(n).padStart(2, '0');
+                return `${d.getFullYear()}년 ${pad(d.getMonth()+1)}월 ${pad(d.getDate())}일 ${pad(d.getHours())}시 ${pad(d.getMinutes())}분 ${pad(d.getSeconds())}초`;
+              })()}
+            />
           </View>
 
           {/* ─── 비밀번호 변경 ─── */}
           <View style={styles.formCard}>
             <SectionLabel>보안</SectionLabel>
-            <TouchableOpacity style={styles.menuRow} activeOpacity={0.75}>
+            <TouchableOpacity style={styles.menuRow} activeOpacity={0.75} onPress={() => navigation.navigate('ChangePassword')}>
               <View style={styles.menuRowLeft}>
                 <View style={[styles.menuIcon, { backgroundColor: '#E8E4FB' }]}>
                   <Ionicons name="lock-closed-outline" size={18} color="#6C5CE7" />
@@ -244,15 +243,15 @@ function SectionLabel({ children }: { children: string }) {
 
 function FormField({
   label, icon, value, onChangeText, placeholder, editable = true,
-  keyboardType, error, hint, multiline,
+  keyboardType, error, hint, multiline, isLast,
 }: {
   label: string; icon: string; value: string;
   onChangeText: (t: string) => void; placeholder: string;
-  editable?: boolean; keyboardType?: any; error?: string; hint?: string; multiline?: boolean;
+  editable?: boolean; keyboardType?: any; error?: string; hint?: string; multiline?: boolean; isLast?: boolean;
 }) {
   return (
     <View style={sStyles.fieldGroup}>
-      <View style={sStyles.fieldRow}>
+      <View style={[sStyles.fieldRow, isLast && { borderBottomWidth: 0 }]}>
         <View style={sStyles.fieldIconBox}>
           <Ionicons name={icon as any} size={16} color={Colors.textMuted} />
         </View>
@@ -356,12 +355,19 @@ const sStyles = StyleSheet.create({
     paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.sm,
   },
   fieldGroup: {},
-  fieldRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, gap: Spacing.md },
+  fieldRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, gap: Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: Colors.borderLight,
+  },
   fieldIconBox: { width: 28, alignItems: 'center', paddingTop: 18 },
   fieldContent: { flex: 1 },
   fieldLabel: { fontSize: FontSize.xs, color: Colors.textSecondary, fontWeight: FontWeight.semibold, marginBottom: 4 },
-  fieldInput: { fontSize: FontSize.base, color: Colors.textPrimary, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
-  fieldInputDisabled: { color: Colors.textMuted, backgroundColor: 'transparent' },
+  fieldInput: {
+    fontSize: FontSize.base, color: Colors.textPrimary,
+    paddingVertical: 6, paddingHorizontal: 0,
+  },
+  fieldInputDisabled: { color: Colors.textMuted },
   hint: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 4 },
   error: { fontSize: FontSize.xs, color: Colors.error, marginTop: 4 },
   infoRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, gap: Spacing.md },

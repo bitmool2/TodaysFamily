@@ -26,11 +26,11 @@ const GROUP_TABS: { type: GroupType; label: string; emoji: string }[] = [
   { type: 'PATERNAL', label: '시댁', emoji: '👴'  },
 ];
 
-// 그룹별 댓글·반응 통계 (실제에선 API)
-const GROUP_STATS: Record<GroupType, { comments: number; reactions: number }> = {
-  ALL:      { comments: 82, reactions: 208 },
-  MATERNAL: { comments: 43, reactions: 116 },
-  PATERNAL: { comments: 25, reactions: 77  },
+// 그룹별 댓글·반응·게시글 통계 (실제에선 API)
+const GROUP_STATS: Record<GroupType, { posts: number; comments: number; reactions: number }> = {
+  ALL:      { posts: 38, comments: 82, reactions: 208 },
+  MATERNAL: { posts: 21, comments: 43, reactions: 116 },
+  PATERNAL: { posts: 12, comments: 25, reactions: 77  },
 };
 
 const GROUP_CONFIG: Record<GroupType, { label: string; color: string; bg: string }> = {
@@ -149,11 +149,16 @@ function GroupStatsBanner({
   stats,
   config,
 }: {
-  stats: { comments: number; reactions: number };
+  stats: { posts: number; comments: number; reactions: number };
   config: { label: string; color: string; bg: string };
 }) {
   return (
     <View style={[styles.statsBanner, { backgroundColor: config.bg }]}>
+      <View style={styles.statsItem}>
+        <Text style={[styles.statsValue, { color: config.color }]}>{stats.posts}</Text>
+        <Text style={[styles.statsLabel, { color: config.color }]}>게시글</Text>
+      </View>
+      <View style={[styles.statsDivider, { backgroundColor: config.color + '33' }]} />
       <View style={styles.statsItem}>
         <Text style={[styles.statsValue, { color: config.color }]}>{stats.comments}</Text>
         <Text style={[styles.statsLabel, { color: config.color }]}>댓글</Text>
@@ -162,12 +167,6 @@ function GroupStatsBanner({
       <View style={styles.statsItem}>
         <Text style={[styles.statsValue, { color: config.color }]}>{stats.reactions}</Text>
         <Text style={[styles.statsLabel, { color: config.color }]}>반응</Text>
-      </View>
-      <View style={[styles.statsDivider, { backgroundColor: config.color + '33' }]} />
-      <View style={[styles.statsItem, { flex: 2 }]}>
-        <Text style={[styles.statsDesc, { color: config.color }]}>
-          {config.label} 멤버들의 활동
-        </Text>
       </View>
     </View>
   );
@@ -208,7 +207,6 @@ const styles = StyleSheet.create({
   statsItem: { flex: 1, alignItems: 'center', gap: 2 },
   statsValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   statsLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
-  statsDesc: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, textAlign: 'center', lineHeight: 16 },
   statsDivider: { width: 1, height: 28, marginHorizontal: Spacing.sm },
   empty: { alignItems: 'center', paddingTop: 80, gap: Spacing.md },
   emptyEmoji: { fontSize: 52 },

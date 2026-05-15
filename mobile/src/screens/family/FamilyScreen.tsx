@@ -8,7 +8,6 @@ import {
   ScrollView,
   Modal,
   FlatList,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +15,26 @@ import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import type { TabScreenProps } from '@/types/navigation';
 import type { GroupType } from '@/types';
 import GroupTabBar from '@/components/common/GroupTabBar';
+
+const { width: W, height: H } = Dimensions.get('window');
+type Props = TabScreenProps<'FamilyTab'>;
+
+const GROUP_EMOJI_OPTIONS = [
+  '👩‍👧', '👨‍👩‍👧', '👵', '👴', '🏠', '🌸', '🌿', '🍀',
+  '💐', '🎋', '🏡', '🌻', '🌷', '🎎', '🎍', '🍵',
+  '🧧', '🎑', '🫖', '🌾', '🎐', '🌙', '⛩️', '🏮',
+];
+
+// 현재 로그인 유저 ID (목업) — 실제에서는 authStore에서 가져옴
+const MY_USER_ID = '1'; // isOwner인 멤버의 id
+
+type GroupTabItem = { type: GroupType; label: string; emoji: string };
+
+const DEFAULT_GROUP_TABS: GroupTabItem[] = [
+  { type: 'ALL',      label: '전체', emoji: '👨‍👩‍👧‍👦' },
+  { type: 'MATERNAL', label: '친정', emoji: '👩‍👧' },
+  { type: 'PATERNAL', label: '시댁', emoji: '👴'  },
+];
 
 const { width: W, height: H } = Dimensions.get('window');
 type Props = TabScreenProps<'FamilyTab'>;
@@ -72,14 +91,19 @@ const MEMBER_ACTIVITY: Record<string, { type: 'post' | 'comment' | 'reaction'; t
 export default function FamilyScreen({ navigation }: Props) {
   const [activeTab, setActiveTab] = useState<GroupType>('ALL');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [groupTabs, setGroupTabs] = useState<GroupTabItem[]>(DEFAULT_GROUP_TABS);
+  const [editingGroup, setEditingGroup] = useState<GroupType | null>(null);
+
+  const isOwner = MEMBERS.find((m) => m.id === MY_USER_ID)?.isOwner ?? false;
 
   const filteredMembers = activeTab === 'ALL'
     ? MEMBERS
     : MEMBERS.filter((m) => m.group === activeTab || m.group === 'ALL');
 
-  // 해당 그룹 멤버들의 실제 활동 합산
   const groupComments  = filteredMembers.reduce((s, m) => s + m.comments,  0);
   const groupReactions = filteredMembers.reduce((s, m) => s + m.reactions, 0);
+
+  const currentTabEmoji = groupTabs.find((t) => t.type === activeTab)?.emoji ?? '';
 
   const groupConfig = {
     ALL:      { label: '전체 가족',  color: Colors.primary, bg: Colors.primaryPale },
@@ -104,15 +128,29 @@ export default function FamilyScreen({ navigation }: Props) {
 
         {/* ─── Group Tabs ─── */}
         <View style={styles.tabsRow}>
-          <GroupTabBar tabs={GROUP_TABS} active={activeTab} onChange={setActiveTab} />
+          <GroupTabBar tabs={groupTabs} active={activeTab} onChange={setActiveTab} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-          {/* ─── 그룹 요약 카드 (실제 활동 기반) ─── */}
+          {/* ─── 그룹 요약 카드 ─── */}
           <View style={[styles.summaryCard, { backgroundColor: groupConfig.bg }]}>
             <View style={styles.summaryLeft}>
-              <Text style={[styles.summaryTitle, { color: groupConfig.color }]}>{groupConfig.label}</Text>
+              <View style={styles.summaryTitleRow}>
+                <Text style={[styles.summaryTitle, { color: groupConfig.color }]}>
+                  {currentTabEmoji} {groupConfig.label}
+                </Text>
+                {/* 친정·시댁만 편집 가능, 그룹 생성자(오너)만 */}
+                {isOwner && activeTab !== 'ALL' && (
+                  <TouchableOpacity
+                    style={[styles.editGroupIconBtn, { borderColor: groupConfig.color + '44' }]}
+                    onPress={() => setEditingGroup(activeTab)}
+                  >
+                    <Ionicons name="pencil-outline" size={13} color={groupConfig.color} />
+                    <Text style={[styles.editGroupIconText, { color: groupConfig.color }]}>아이콘 변경</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text style={styles.summarySub}>
                 댓글 {groupComments}개 · 반응 {groupReactions}개
               </Text>
@@ -243,6 +281,53 @@ export default function FamilyScreen({ navigation }: Props) {
           </View>
         )}
       </Modal>
+
+      {/* ─── 그룹 아이콘 편집 모달 (생성자 전용) ─── */}
+      <Modal
+        visible={!!editingGroup}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditingGroup(null)}
+      >
+        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setEditingGroup(null)} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <View style={styles.sheetAvatar}>
+              <Text style={{ fontSize: 28 }}>
+                {groupTabs.find((t) => t.type === editingGroup)?.emoji}
+              </Text>
+            </View>
+            <View style={styles.sheetMemberInfo}>
+              <Text style={styles.sheetName}>
+                {editingGroup === 'MATERNAL' ? '친정' : '시댁'} 그룹 아이콘 변경
+              </Text>
+              <Text style={styles.sheetRole}>그룹 생성자만 변경할 수 있어요</Text>
+            </View>
+            <TouchableOpacity style={styles.sheetClose} onPress={() => setEditingGroup(null)}>
+              <Ionicons name="close" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.emojiGrid}>
+            {GROUP_EMOJI_OPTIONS.map((e) => {
+              const isSelected = groupTabs.find((t) => t.type === editingGroup)?.emoji === e;
+              return (
+                <TouchableOpacity
+                  key={e}
+                  style={[styles.emojiItem, isSelected && styles.emojiItemSelected]}
+                  onPress={() => {
+                    if (!editingGroup) return;
+                    setGroupTabs((prev) => prev.map((t) => t.type === editingGroup ? { ...t, emoji: e } : t));
+                    setEditingGroup(null);
+                  }}
+                >
+                  <Text style={{ fontSize: 28 }}>{e}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -264,7 +349,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xl,
   },
   summaryLeft: { flex: 1 },
+  summaryTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
   summaryTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
+  editGroupIconBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1, borderRadius: Radius.full,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  editGroupIconText: { fontSize: 10, fontWeight: FontWeight.bold },
   summarySub: { fontSize: FontSize.xs, color: Colors.textSecondary, marginTop: 4 },
   memberStack: { flexDirection: 'row', alignItems: 'center' },
   stackAvatar: {
@@ -343,4 +435,7 @@ const styles = StyleSheet.create({
   activityTime: { fontSize: FontSize.xs, color: Colors.textMuted, marginTop: 2 },
   sheetEmpty: { alignItems: 'center', paddingVertical: Spacing.xxxl },
   sheetEmptyText: { fontSize: FontSize.sm, color: Colors.textMuted },
+  emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.md, justifyContent: 'center', paddingBottom: 40 },
+  emojiItem: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.backgroundMuted },
+  emojiItemSelected: { backgroundColor: Colors.primaryPale, borderWidth: 2, borderColor: Colors.primary },
 });

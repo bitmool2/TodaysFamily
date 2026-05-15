@@ -27,7 +27,7 @@ type Props = RootStackScreenProps<'Login'>;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const PROFILE_EMOJIS = ['👩', '👨', '👵', '👴', '👧', '👦', '🧑', '👶', '🐶', '🐱', '🌸', '⭐'];
+const PROFILE_EMOJIS = ['👩', '👨', '👵', '👴', '👧', '👦', '🧑', '👶', '🐶', '🐱', '🌸', '⭐', '🦊', '🐼', '🐰', '🐻', '🦁', '🐯', '🐸', '🐧', '🌻', '🌹', '🍀', '🌈', '🎀', '💎', '🎸', '⚽', '🎂', '🍎'];
 
 function validatePassword(pw: string): string | null {
   if (pw.length < 8) return '비밀번호는 8자 이상이어야 합니다.';

@@ -22,6 +22,7 @@ import FamilyInviteScreen from '@/screens/family/FamilyInviteScreen';
 import KidsNoteGuideScreen from '@/screens/settings/KidsNoteGuideScreen';
 import EditProfileScreen from '@/screens/settings/EditProfileScreen';
 import AlbumPickerScreen from '@/screens/settings/AlbumPickerScreen';
+import ChangePasswordScreen from '@/screens/settings/ChangePasswordScreen';
 
 import { Colors } from '@/theme';
 
@@ -106,6 +107,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="AlbumPicker"
         component={AlbumPickerScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>

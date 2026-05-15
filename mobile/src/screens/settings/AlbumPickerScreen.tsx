@@ -71,36 +71,20 @@ export default function AlbumPickerScreen({ navigation }: Props) {
         Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다.', [
           { text: '확인', onPress: () => navigation.goBack() },
         ]);
+        setLoadingAlbums(false);
         return;
       }
       const result = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
-      const albumItems: AlbumItem[] = result.map((a) => ({
-        id: a.id,
-        title: a.title,
-        assetCount: a.assetCount,
-      }));
-      // 목업 앨범 추가 (스토리보드 예시처럼)
-      const mockAlbums: AlbumItem[] = [
-        { id: 'recents', title: '최근 항목', assetCount: 2358 },
-        { id: 'favorites', title: '즐겨찾기', assetCount: 312 },
-        { id: 'todaysfamily', title: '오늘의가족 자동업로드', assetCount: 128 },
-        { id: 'minjun', title: '민준이 성장기록', assetCount: 84 },
-        { id: 'family_trip', title: '가족여행', assetCount: 67 },
-        ...albumItems.filter((a) => !['Recents', 'Favorites'].includes(a.title)).slice(0, 5),
-      ];
-      setAlbums(mockAlbums);
-      // 현재 설정된 앨범 선택
-      const current = mockAlbums.find((a) => a.title === autoUploadAlbum);
+      const albumItems: AlbumItem[] = result
+        .filter((a) => a.assetCount > 0)
+        .sort((a, b) => b.assetCount - a.assetCount)
+        .map((a) => ({ id: a.id, title: a.title, assetCount: a.assetCount }));
+      setAlbums(albumItems);
+      // 현재 설정된 앨범 선택 상태 복원
+      const current = albumItems.find((a) => a.title === autoUploadAlbum);
       if (current) setSelectedAlbumId(current.id);
     } catch {
-      // 권한 없을 경우 목업만 표시
-      setAlbums([
-        { id: 'recents', title: '최근 항목', assetCount: 2358 },
-        { id: 'favorites', title: '즐겨찾기', assetCount: 312 },
-        { id: 'todaysfamily', title: '오늘의가족 자동업로드', assetCount: 128 },
-        { id: 'minjun', title: '민준이 성장기록', assetCount: 84 },
-        { id: 'family_trip', title: '가족여행', assetCount: 67 },
-      ]);
+      Alert.alert('오류', '앨범을 불러오는 중 문제가 발생했습니다.');
     } finally {
       setLoadingAlbums(false);
     }
@@ -172,16 +156,18 @@ export default function AlbumPickerScreen({ navigation }: Props) {
                     onPress={() => handleSelectAlbum(item)}
                     activeOpacity={0.75}
                   >
-                    {/* 썸네일 */}
+                    {/* 썸네일 — 실제 앨범은 기본 아이콘으로 표시 */}
                     <View style={[styles.albumThumb, isSelected && { backgroundColor: Colors.primary + '22' }]}>
-                      {item.id === 'todaysfamily'
-                        ? <Text style={{ fontSize: 24 }}>🏠</Text>
-                        : item.id === 'recents'
-                        ? <Text style={{ fontSize: 24 }}>🕐</Text>
-                        : item.id === 'favorites'
-                        ? <Text style={{ fontSize: 24 }}>⭐</Text>
-                        : <Ionicons name="images-outline" size={24} color={Colors.textSecondary} />
-                      }
+                      <Ionicons
+                        name={
+                          item.title.includes('최근') ? 'time-outline'
+                          : item.title.includes('즐겨') ? 'star-outline'
+                          : item.title.includes('스크린') ? 'phone-portrait-outline'
+                          : 'images-outline'
+                        }
+                        size={26}
+                        color={isSelected ? Colors.primary : Colors.textSecondary}
+                      />
                     </View>
                     <View style={styles.albumInfo}>
                       <Text style={[styles.albumTitle, isSelected && { color: Colors.primary }]}>{item.title}</Text>
