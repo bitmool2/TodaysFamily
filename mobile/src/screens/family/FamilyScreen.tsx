@@ -36,15 +36,6 @@ const DEFAULT_GROUP_TABS: GroupTabItem[] = [
   { type: 'PATERNAL', label: '시댁', emoji: '👴'  },
 ];
 
-const { width: W, height: H } = Dimensions.get('window');
-type Props = TabScreenProps<'FamilyTab'>;
-
-const GROUP_TABS: { type: GroupType; label: string; emoji: string }[] = [
-  { type: 'ALL',      label: '전체', emoji: '👨‍👩‍👧‍👦' },
-  { type: 'MATERNAL', label: '친정', emoji: '👩‍👧' },
-  { type: 'PATERNAL', label: '시댁', emoji: '👴'  },
-];
-
 interface Member {
   id: string; name: string; role: string; emoji: string;
   group: GroupType; isOwner?: boolean;
