@@ -5,21 +5,55 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackScreenProps } from '@/types/navigation';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
+import { useAuthStore } from '@/store/authStore';
 
 type Props = RootStackScreenProps<'FamilyInvite'>;
 
+/** todaysfamily://invite?adminEmail=xxx&groupType=ALL 형태의 딥링크 생성 */
+function buildInviteDeepLink(adminEmail: string, groupType: string) {
+  const encoded = encodeURIComponent(adminEmail);
+  return `todaysfamily://invite?adminEmail=${encoded}&groupType=${groupType}`;
+}
+
+/** 공유용 메시지 */
+function buildInviteMessage(adminName: string, groupLabel: string, link: string) {
+  return `${adminName}님이 오늘의가족 "${groupLabel}" 그룹에 초대했어요!\n\n아래 링크를 눌러 가입하면 자동으로 연결됩니다.\n${link}`;
+}
+
 export default function FamilyInviteScreen({ route, navigation }: Props) {
   const { groupType } = route.params;
+  const user = useAuthStore((s) => s.user);
 
-  const groupLabel = groupType === 'ALL' ? '전체' : groupType === 'MATERNAL' ? '친정' : '시댁';
+  const groupLabel =
+    groupType === 'ALL' ? '전체' : groupType === 'MATERNAL' ? '친정' : '시댁';
 
-  const handleKakaoInvite = () => Alert.alert('카카오 초대', '카카오 링크 공유가 실행됩니다.');
-  const handleSmsInvite = () => Alert.alert('SMS 초대', 'SMS 발송이 실행됩니다.');
+  const adminEmail = user?.email ?? '';
+  const adminName  = user?.name  ?? '관리자';
+  const deepLink   = buildInviteDeepLink(adminEmail, groupType);
+  const message    = buildInviteMessage(adminName, groupLabel, deepLink);
+
+  const handleShare = async () => {
+    try {
+      await Share.share({ message, url: deepLink });
+    } catch {
+      Alert.alert('공유 오류', '공유 중 문제가 발생했습니다.');
+    }
+  };
+
+  const handleKakaoInvite = () => {
+    // 실제 카카오 SDK 연동 전 — Share로 대체
+    handleShare();
+  };
+
+  const handleSmsInvite = () => {
+    handleShare();
+  };
 
   return (
     <View style={styles.container}>
@@ -39,8 +73,15 @@ export default function FamilyInviteScreen({ route, navigation }: Props) {
 
           <Text style={styles.title}>{groupLabel} 가족을 초대해요</Text>
           <Text style={styles.subtitle}>
-            초대 링크를 공유하면 가족이 쉽게 앱에 참여할 수 있어요
+            초대 링크를 공유하면 가족이 쉽게 앱에 참여할 수 있어요{'\n'}
+            링크로 가입하면 관리자 이메일이 자동 입력됩니다
           </Text>
+
+          {/* 초대 링크 미리보기 */}
+          <View style={styles.linkPreview}>
+            <Ionicons name="link-outline" size={15} color={Colors.primary} />
+            <Text style={styles.linkText} numberOfLines={1}>{deepLink}</Text>
+          </View>
 
           <View style={styles.buttons}>
             <TouchableOpacity style={styles.kakaoBtn} onPress={handleKakaoInvite} activeOpacity={0.85}>
@@ -49,8 +90,8 @@ export default function FamilyInviteScreen({ route, navigation }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.smsBtn} onPress={handleSmsInvite} activeOpacity={0.85}>
-              <Ionicons name="chatbubble-outline" size={22} color={Colors.primary} />
-              <Text style={styles.smsBtnText}>SMS로 초대</Text>
+              <Ionicons name="share-social-outline" size={22} color={Colors.primary} />
+              <Text style={styles.smsBtnText}>링크 공유하기</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -102,6 +143,15 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  linkPreview: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+    backgroundColor: Colors.backgroundMuted, borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    width: '100%',
+  },
+  linkText: {
+    flex: 1, fontSize: FontSize.xs, color: Colors.textSecondary, fontFamily: 'monospace',
   },
   buttons: { width: '100%', gap: Spacing.md, marginTop: Spacing.xl },
   kakaoBtn: {

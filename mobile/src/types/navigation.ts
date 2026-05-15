@@ -8,7 +8,7 @@ import type { GroupType, UploadAsset } from './index';
 export type RootStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
-  Login: undefined;
+  Login: { inviteAdminEmail?: string; inviteGroupType?: string } | undefined;
   FamilyGroupSetup: undefined;
   Main: undefined;
   // Upload sub-stack (modal)

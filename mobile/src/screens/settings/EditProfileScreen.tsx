@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors, FontSize, FontWeight, Spacing, Radius, Shadow } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
+import type { User } from '@/types';
 import type { RootStackScreenProps } from '@/types/navigation';
 
 type Props = RootStackScreenProps<'EditProfile'>;
@@ -152,6 +153,9 @@ export default function EditProfileScreen({ navigation }: Props) {
               isLast
             />
           </View>
+
+          {/* ─── 권한 & 소속 그룹 ─── */}
+          <RoleGroupCard user={user} />
 
           <View style={styles.formCard}>
             <SectionLabel>계정 정보</SectionLabel>
@@ -373,4 +377,103 @@ const sStyles = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, gap: Spacing.md },
   infoValue: { fontSize: FontSize.base, color: Colors.textPrimary, paddingTop: 2 },
   divider: { height: 1, backgroundColor: Colors.borderLight, marginLeft: Spacing.xl + 28 + Spacing.md },
+});
+
+// ── 권한 & 소속 그룹 카드 ───────────────────────────────────────────────────
+
+const GROUP_LABELS: Record<string, string> = {
+  ALL: '전체', MATERNAL: '친정', PATERNAL: '시댁',
+};
+
+// 목업 소속 그룹 (실제에서는 authStore/API에서 가져옴)
+const MOCK_GROUPS_MEMBER = [
+  { adminEmail: 'parent@family.app', adminName: '홍민준', groupType: 'MATERNAL', groupLabel: '친정' },
+  { adminEmail: 'parent2@family.app', adminName: '박지수', groupType: 'PATERNAL', groupLabel: '시댁' },
+];
+
+function RoleGroupCard({ user }: { user: User | null }) {
+  const role = user?.role ?? 'ADMIN';
+  const groups = role === 'MEMBER' ? (user?.groups ?? MOCK_GROUPS_MEMBER) : [];
+
+  const roleColor = role === 'ADMIN' ? Colors.primary : '#6C5CE7';
+  const roleBg    = role === 'ADMIN' ? Colors.primaryPale : '#F0ECFF';
+  const roleLabel = role === 'ADMIN' ? '관리자' : '멤버';
+  const roleDesc  = role === 'ADMIN'
+    ? '가족 그룹을 관리하고 멤버를 초대할 수 있어요'
+    : '소속된 관리자의 그룹 데이터를 열람할 수 있어요';
+  const roleIcon  = role === 'ADMIN' ? 'shield-checkmark-outline' : 'people-outline';
+
+  return (
+    <View style={rgStyles.card}>
+      {/* 역할 배지 */}
+      <View style={[rgStyles.roleRow, { backgroundColor: roleBg }]}>
+        <View style={[rgStyles.roleIconBox, { backgroundColor: roleColor + '22' }]}>
+          <Ionicons name={roleIcon as any} size={20} color={roleColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={rgStyles.roleTitleRow}>
+            <Text style={[rgStyles.roleTitle, { color: roleColor }]}>{roleLabel}</Text>
+            <View style={[rgStyles.rolePill, { borderColor: roleColor + '55', backgroundColor: roleColor + '11' }]}>
+              <Text style={[rgStyles.rolePillText, { color: roleColor }]}>{roleLabel}</Text>
+            </View>
+          </View>
+          <Text style={rgStyles.roleDesc}>{roleDesc}</Text>
+        </View>
+      </View>
+
+      {/* 소속 그룹 목록 (멤버만) */}
+      {role === 'MEMBER' && (
+        <View style={rgStyles.groupsSection}>
+          <Text style={rgStyles.groupsTitle}>소속 그룹</Text>
+          {groups.length === 0 ? (
+            <Text style={rgStyles.groupsEmpty}>아직 소속된 그룹이 없어요</Text>
+          ) : (
+            groups.map((g, i) => (
+              <View key={i} style={[rgStyles.groupRow, i < groups.length - 1 && rgStyles.groupRowBorder]}>
+                <View style={rgStyles.groupBadge}>
+                  <Text style={rgStyles.groupBadgeText}>
+                    {g.groupType === 'ALL' ? '전체' : g.groupType === 'MATERNAL' ? '친정' : '시댁'}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={rgStyles.groupAdmin}>{g.adminName} 관리자</Text>
+                  <Text style={rgStyles.groupAdminEmail}>{g.adminEmail}</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+              </View>
+            ))
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const rgStyles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.backgroundCard, borderRadius: Radius.xl,
+    overflow: 'hidden', ...Shadow.sm, marginHorizontal: 0,
+  },
+  roleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.xl },
+  roleIconBox: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  roleTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 },
+  roleTitle: { fontSize: FontSize.base, fontWeight: FontWeight.bold },
+  rolePill: {
+    borderWidth: 1, borderRadius: Radius.full,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  rolePillText: { fontSize: 10, fontWeight: FontWeight.bold },
+  roleDesc: { fontSize: FontSize.xs, color: Colors.textSecondary, lineHeight: 16 },
+  groupsSection: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.lg },
+  groupsTitle: { fontSize: FontSize.xs, fontWeight: FontWeight.bold, color: Colors.textSecondary, marginBottom: Spacing.md },
+  groupsEmpty: { fontSize: FontSize.sm, color: Colors.textMuted, textAlign: 'center', paddingVertical: Spacing.lg },
+  groupRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.md, gap: Spacing.md },
+  groupRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  groupBadge: {
+    backgroundColor: Colors.primaryPale, borderRadius: Radius.md,
+    paddingHorizontal: 10, paddingVertical: 4, minWidth: 42, alignItems: 'center',
+  },
+  groupBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold, color: Colors.primary },
+  groupAdmin: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: Colors.textPrimary },
+  groupAdminEmail: { fontSize: FontSize.xs, color: Colors.textMuted },
 });

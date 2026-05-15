@@ -10,11 +10,22 @@ export type AuthProvider = 'KAKAO' | 'GOOGLE' | 'EMAIL';
 
 // ─── User & Auth ──────────────────────────────────────────────────────────────
 
+export type UserRole = 'ADMIN' | 'MEMBER';
+
+export interface UserGroup {
+  adminEmail: string;
+  adminName: string;
+  groupType: GroupType;
+  groupLabel: string;
+}
+
 export interface User {
   id: string;
   email: string;
   name: string;
   bio?: string;
+  role?: UserRole;
+  groups?: UserGroup[];          // 소속 그룹 목록 (멤버인 경우)
   profileImage?: string;
   provider: AuthProvider;
   createdAt: string;

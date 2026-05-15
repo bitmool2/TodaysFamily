@@ -36,8 +36,12 @@ function validatePassword(pw: string): string | null {
   return null;
 }
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: Props) {
   const [mode, setMode] = useState<'main' | 'email' | 'signup'>('main');
+
+  // 초대 링크로 진입한 경우 자동 설정
+  const inviteAdminEmail = route?.params?.inviteAdminEmail;
+  const inviteGroupType  = route?.params?.inviteGroupType;
 
   // Login fields
   const [email, setEmail] = useState('');
@@ -75,6 +79,16 @@ export default function LoginScreen({ navigation }: Props) {
 
   const [isLoading, setIsLoading] = useState(false);
   const setAuth = useAuthStore((s) => s.setAuth);
+
+  // ── 초대 링크로 진입한 경우: 회원가입 모드로 자동 전환 + 필드 사전 입력 ──
+  React.useEffect(() => {
+    if (inviteAdminEmail) {
+      setSignupRole('MEMBER');
+      setAdminEmail(inviteAdminEmail);
+      setAdminEmailVerified(null); // 확인은 사용자가 직접 눌러야 함
+      setMode('signup');
+    }
+  }, [inviteAdminEmail]);
 
   const handleSocialLogin = (provider: 'KAKAO' | 'GOOGLE') => {
     Alert.alert(
@@ -339,6 +353,17 @@ export default function LoginScreen({ navigation }: Props) {
               </TouchableOpacity>
 
               <Text style={styles.signupTitle}>회원가입</Text>
+
+              {/* 초대 링크 진입 배너 */}
+              {!!inviteAdminEmail && (
+                <View style={styles.inviteBanner}>
+                  <Ionicons name="mail-open-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.inviteBannerText}>
+                    초대 링크로 접속했습니다.{'\n'}
+                    관리자 이메일이 자동 입력되었습니다.
+                  </Text>
+                </View>
+              )}
 
               {/* ─── 역할 선택 ─── */}
               <View style={styles.roleSection}>
@@ -797,6 +822,13 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
   },
+  // 초대 링크 배너
+  inviteBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
+    backgroundColor: Colors.primaryPale, borderRadius: Radius.xl,
+    padding: Spacing.lg, marginBottom: Spacing.sm,
+  },
+  inviteBannerText: { flex: 1, fontSize: FontSize.sm, color: Colors.primary, lineHeight: 19 },
   // 관리자 이메일 섹션
   adminEmailSection: {
     backgroundColor: Colors.primaryPale, borderRadius: Radius.xl,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
 import type { RootStackParamList } from '@/types/navigation';
 
 import SplashScreen from '@/screens/SplashScreen';
@@ -27,6 +28,28 @@ import ChangePasswordScreen from '@/screens/settings/ChangePasswordScreen';
 import { Colors } from '@/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/**
+ * Deep link 설정
+ * todaysfamily://invite?adminEmail=xxx&groupType=MATERNAL
+ * → Login 화면으로 params 전달
+ */
+const linking = {
+  prefixes: ['todaysfamily://'],
+  config: {
+    screens: {
+      Login: {
+        path: 'invite',
+        parse: {
+          inviteAdminEmail: (value: string) => decodeURIComponent(value),
+          inviteGroupType:  (value: string) => value,
+        },
+      },
+    },
+  },
+};
+
+export { linking };
 
 export default function RootNavigator() {
   return (

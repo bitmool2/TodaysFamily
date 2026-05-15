@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import RootNavigator from '@/navigation/RootNavigator';
+import { linking } from '@/navigation/RootNavigator';
 import AutoDetectionPopup from '@/components/upload/AutoDetectionPopup';
 import { usePhotoDetection } from '@/hooks/usePhotoDetection';
 import { useShareIntent } from '@/hooks/useShareIntent';
@@ -46,7 +47,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
           <StatusBar style="dark" />
           <AppContent />
         </NavigationContainer>
