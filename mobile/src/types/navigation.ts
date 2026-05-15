@@ -25,6 +25,10 @@ export type RootStackParamList = {
   FamilyInvite: { groupType: GroupType };
   // Guide
   KidsNoteGuide: undefined;
+  // Profile edit
+  EditProfile: undefined;
+  // Album picker for auto-upload
+  AlbumPicker: undefined;
 };
 
 // ─── Bottom Tab ───────────────────────────────────────────────────────────────

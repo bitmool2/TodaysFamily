@@ -23,6 +23,9 @@ export interface UploadResult {
   errorMessage?: string;
 }
 
+/** 자동 업로드 한 번에 최대 처리 가능 장수 */
+export const AUTO_UPLOAD_MAX_COUNT = 5;
+
 /**
  * Orchestrates the full upload pipeline for one batch of assets:
  *   1. GET presigned URL from backend
@@ -31,6 +34,7 @@ export interface UploadResult {
  *
  * Assets are uploaded sequentially so progress feedback stays accurate.
  * A single asset failure does not abort the whole batch.
+ * Auto-upload batches are capped at AUTO_UPLOAD_MAX_COUNT assets.
  */
 export function useUpload() {
   const {
@@ -53,10 +57,16 @@ export function useUpload() {
   const upload = useCallback(
     async (opts: UploadOptions): Promise<UploadResult> => {
       const {
-        assets, groupType, source,
+        assets: rawAssets, groupType, source,
         caption, isAiCaption = false, childId,
         onFileComplete,
       } = opts;
+
+      // 자동 업로드 소스인 경우 최근 5장으로 제한
+      const isAutoUpload = source === 'GALLERY' || source === 'KIDSNOTE';
+      const assets = isAutoUpload && rawAssets.length > AUTO_UPLOAD_MAX_COUNT
+        ? rawAssets.slice(0, AUTO_UPLOAD_MAX_COUNT)
+        : rawAssets;
 
       if (!family) {
         const msg = '가족 그룹이 아직 설정되지 않았어요. 설정 > 가족 그룹 관리에서 먼저 가족을 등록해 주세요.';

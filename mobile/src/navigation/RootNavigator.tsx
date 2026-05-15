@@ -20,6 +20,8 @@ import PostDetailScreen from '@/screens/feed/PostDetailScreen';
 import CommentsScreen from '@/screens/feed/CommentsScreen';
 import FamilyInviteScreen from '@/screens/family/FamilyInviteScreen';
 import KidsNoteGuideScreen from '@/screens/settings/KidsNoteGuideScreen';
+import EditProfileScreen from '@/screens/settings/EditProfileScreen';
+import AlbumPickerScreen from '@/screens/settings/AlbumPickerScreen';
 
 import { Colors } from '@/theme';
 
@@ -94,6 +96,16 @@ export default function RootNavigator() {
       <Stack.Screen
         name="KidsNoteGuide"
         component={KidsNoteGuideScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="AlbumPicker"
+        component={AlbumPickerScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>

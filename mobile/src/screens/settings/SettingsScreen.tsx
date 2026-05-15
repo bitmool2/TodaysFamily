@@ -45,7 +45,7 @@ export default function SettingsScreen({ navigation }: Props) {
           <Text style={styles.pageTitle}>설정</Text>
 
           {/* ─── Profile card ─── */}
-          <TouchableOpacity style={styles.profileCard} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.profileCard} activeOpacity={0.85} onPress={() => navigation.navigate('EditProfile')}>
             <View style={styles.profileAvatar}>
               <Text style={styles.profileEmoji}>👩</Text>
             </View>
@@ -83,8 +83,9 @@ export default function SettingsScreen({ navigation }: Props) {
               icon="folder-open-outline"
               iconBg={Colors.primaryPale}
               label="자동 업로드 앨범 선택"
-              value="오늘의가족 자동업로드"
+              value={autoUploadAlbum}
               disabled={!autoUploadEnabled}
+              onPress={() => navigation.navigate('AlbumPicker')}
             />
             <Divider />
             <ToggleRow
@@ -96,6 +97,14 @@ export default function SettingsScreen({ navigation }: Props) {
               onChange={setRecentAutoUpload}
               disabled={!autoUploadEnabled}
             />
+            {autoUploadEnabled && (
+              <View style={styles.uploadLimitBanner}>
+                <Ionicons name="warning-outline" size={14} color="#C4693A" />
+                <Text style={styles.uploadLimitText}>
+                  자동 업로드는 한 번에 최근 추가된 사진 <Text style={styles.uploadLimitBold}>최대 5장</Text>까지만 가능합니다
+                </Text>
+              </View>
+            )}
           </SectionCard>
 
           {/* ─── 키즈노트 연동 ─── */}
@@ -239,11 +248,11 @@ function ToggleRow({ icon, iconBg, label, desc, value, onChange, disabled }: {
   );
 }
 
-function LinkRow({ icon, iconBg, label, value, badge, disabled }: {
-  icon: string; iconBg: string; label: string; value?: string; badge?: string; disabled?: boolean;
+function LinkRow({ icon, iconBg, label, value, badge, disabled, onPress }: {
+  icon: string; iconBg: string; label: string; value?: string; badge?: string; disabled?: boolean; onPress?: () => void;
 }) {
   return (
-    <TouchableOpacity style={[rowStyles.row, disabled && rowStyles.rowDisabled]} activeOpacity={disabled ? 1 : 0.75} disabled={disabled}>
+    <TouchableOpacity style={[rowStyles.row, disabled && rowStyles.rowDisabled]} activeOpacity={disabled ? 1 : 0.75} disabled={disabled} onPress={disabled ? undefined : onPress}>
       <View style={[rowStyles.iconBox, { backgroundColor: disabled ? Colors.backgroundMuted : iconBg }]}>
         <Ionicons name={icon as any} size={19} color={disabled ? Colors.textMuted : Colors.primary} />
       </View>
@@ -327,6 +336,14 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     paddingBottom: Spacing.xl,
   },
+  uploadLimitBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xs,
+    backgroundColor: '#FBE8DC', marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: 8,
+  },
+  uploadLimitText: { flex: 1, fontSize: FontSize.xs, color: '#C4693A', lineHeight: 16 },
+  uploadLimitBold: { fontWeight: FontWeight.bold },
 });
 
 const sectionStyles = StyleSheet.create({

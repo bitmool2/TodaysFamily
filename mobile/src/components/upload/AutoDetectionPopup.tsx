@@ -152,6 +152,11 @@ export default function AutoDetectionPopup({ visible, assets, onShare, onDismiss
               방금 저장한 어린이집 사진{' '}
               <Text style={styles.headerBold}>{assets.length}장</Text>을 발견했어요
             </Text>
+            {assets.length > 5 && (
+              <Text style={styles.headerWarning}>
+                ⚠️ 자동 업로드는 최근 5장까지만 처리됩니다
+              </Text>
+            )}
           </View>
         </View>
 
@@ -381,6 +386,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   headerBold: { fontWeight: FontWeight.bold, color: Colors.textPrimary },
+  headerWarning: { fontSize: FontSize.xs, color: '#C4693A', marginTop: 3, fontWeight: FontWeight.semibold },
   thumbGrid: { flexDirection: 'row', gap: Spacing.sm },
   thumbCell: {
     width: THUMB_SIZE,
